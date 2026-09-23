@@ -1,24 +1,62 @@
-<div class="flex items-center justify-between mb-6">
-  <h1 class="text-2xl font-bold">Services</h1>
-  <%= link_to "New service", new_admin_service_path, class: "bg-red-600 text-white px-4 py-2 rounded-md font-medium hover:bg-red-700" %>
-</div>
+<div class="max-w-3xl">
+  <h1 class="text-2xl font-bold mb-1">Services &amp; topics</h1>
+  <p class="text-gray-600 mb-6">What people can file tickets under. Retiring something hides it from the form without touching existing tickets.</p>
 
-<div class="divide-y divide-gray-200 bg-white rounded-lg border border-gray-200">
-  <% @services.each do |service| %>
-    <div class="p-4 flex items-center justify-between gap-4">
-      <div>
-        <p class="font-medium text-gray-900">
-          <%= service.name %>
-          <% unless service.active? %><span class="text-xs text-gray-400">(inactive)</span><% end %>
-        </p>
-        <p class="text-sm text-gray-500"><%= pluralize(service.topics.size, "topic") %></p>
+  <div class="space-y-4 mb-8">
+    <% @services.each do |service| %>
+      <div class="bg-white border border-gray-200 rounded-lg overflow-hidden">
+        <div class="px-4 py-3 flex items-center justify-between gap-4 border-b border-gray-100 bg-gray-50">
+          <p class="font-semibold text-gray-900">
+            <%= service.name %>
+            <% unless service.active? %>
+              <span class="text-xs font-normal px-2 py-0.5 rounded-full bg-gray-200 text-gray-600">retired</span>
+            <% end %>
+          </p>
+          <div class="flex items-center gap-3 text-sm shrink-0">
+            <%= link_to "Edit", edit_admin_service_path(service), class: "text-gray-600 hover:underline" %>
+            <%= button_to "Delete", admin_service_path(service), method: :delete,
+                  class: "text-red-600 hover:underline bg-transparent border-0 p-0 cursor-pointer",
+                  form: { data: { turbo_confirm: "Delete #{service.name}? Retiring it is usually what you want." } } %>
+          </div>
+        </div>
+
+        <% if service.topics.any? %>
+          <ul class="divide-y divide-gray-100">
+            <% service.topics.sort_by(&:name).each do |topic| %>
+              <li class="px-4 py-2 flex items-center justify-between gap-4">
+                <span class="text-sm text-gray-800">
+                  <%= topic.name %>
+                  <% unless topic.active? %>
+                    <span class="text-xs px-2 py-0.5 rounded-full bg-gray-100 text-gray-500">retired</span>
+                  <% end %>
+                </span>
+                <div class="flex items-center gap-3 text-sm shrink-0">
+                  <%= link_to "Edit", edit_admin_topic_path(topic), class: "text-gray-600 hover:underline" %>
+                  <%= button_to "Delete", admin_topic_path(topic), method: :delete,
+                        class: "text-red-600 hover:underline bg-transparent border-0 p-0 cursor-pointer",
+                        form: { data: { turbo_confirm: "Delete #{topic.name}?" } } %>
+                </div>
+              </li>
+            <% end %>
+          </ul>
+        <% else %>
+          <p class="px-4 py-2 text-sm text-gray-400">No topics yet — nothing can be filed under this service until it has one.</p>
+        <% end %>
+
+        <%= form_with model: Topic.new, url: admin_topics_path, class: "px-4 py-3 border-t border-gray-100 flex items-center gap-2" do |f| %>
+          <%= f.hidden_field :service_id, value: service.id %>
+          <%= f.text_field :name, placeholder: "Add a topic", class: input_classes("text-sm py-1.5") %>
+          <%= f.submit "Add", class: "shrink-0 text-sm bg-gray-900 text-white px-3 py-1.5 rounded-md font-medium hover:bg-gray-700 cursor-pointer" %>
+        <% end %>
       </div>
-      <div class="flex items-center gap-3 text-sm">
-        <%= link_to "Topics", admin_topics_path(service_id: service.id), class: "text-gray-600 hover:underline" %>
-        <%= link_to "Edit", edit_admin_service_path(service), class: "text-gray-600 hover:underline" %>
-        <%= button_to "Delete", admin_service_path(service), method: :delete, class: "text-red-600 hover:underline bg-transparent border-0 p-0 cursor-pointer",
-              form: { data: { turbo_confirm: "Delete #{service.name}?" } } %>
-      </div>
-    </div>
-  <% end %>
+    <% end %>
+  </div>
+
+  <div class="bg-white border border-gray-200 rounded-lg p-4">
+    <h2 class="font-semibold mb-3">New service</h2>
+    <%= form_with model: Service.new, url: admin_services_path, class: "flex items-center gap-2" do |f| %>
+      <%= f.text_field :name, placeholder: "e.g. Hardware", class: input_classes("text-sm py-1.5") %>
+      <%= f.submit "Add service", class: "shrink-0 text-sm bg-red-600 text-white px-3 py-1.5 rounded-md font-medium hover:bg-red-700 cursor-pointer" %>
+    <% end %>
+  </div>
 </div>

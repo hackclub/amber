@@ -1,23 +1,13 @@
 class Admin::TopicsController < Admin::BaseController
   before_action :set_topic, only: [ :edit, :update, :destroy ]
 
-  def index
-    @topics = Topic.includes(:service).order("services.name, topics.name").joins(:service)
-  end
-
-  def new
-    @topic = Topic.new(service_id: params[:service_id])
-    @services = Service.order(:name)
-  end
-
   def create
-    @topic = Topic.new(topic_params)
+    topic = Topic.new(topic_params)
 
-    if @topic.save
-      redirect_to admin_topics_path, notice: "Topic created."
+    if topic.save
+      redirect_to admin_services_path, notice: "Added #{topic.name}."
     else
-      @services = Service.order(:name)
-      render :new, status: :unprocessable_entity
+      redirect_to admin_services_path, alert: topic.errors.full_messages.to_sentence
     end
   end
 
@@ -27,7 +17,7 @@ class Admin::TopicsController < Admin::BaseController
 
   def update
     if @topic.update(topic_params)
-      redirect_to admin_topics_path, notice: "Topic updated."
+      redirect_to admin_services_path, notice: "Topic updated."
     else
       @services = Service.order(:name)
       render :edit, status: :unprocessable_entity
@@ -36,9 +26,9 @@ class Admin::TopicsController < Admin::BaseController
 
   def destroy
     if @topic.destroy
-      redirect_to admin_topics_path, notice: "Topic deleted."
+      redirect_to admin_services_path, notice: "Topic deleted."
     else
-      redirect_to admin_topics_path, alert: @topic.errors.full_messages.to_sentence
+      redirect_to admin_services_path, alert: @topic.errors.full_messages.to_sentence
     end
   end
 

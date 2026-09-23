@@ -32,10 +32,7 @@ class PagesRenderTest < ActionDispatch::IntegrationTest
       ticket_path(tickets(:website_bug)),
       settings_path,
       admin_services_path,
-      new_admin_service_path,
       edit_admin_service_path(services(:website)),
-      admin_topics_path,
-      new_admin_topic_path,
       edit_admin_topic_path(topics(:bug)),
       admin_users_path,
       admin_user_path(users(:requester))

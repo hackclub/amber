@@ -2,20 +2,16 @@ class Admin::ServicesController < Admin::BaseController
   before_action :set_service, only: [ :edit, :update, :destroy ]
 
   def index
-    @services = Service.order(:name)
-  end
-
-  def new
-    @service = Service.new
+    @services = Service.includes(:topics).order(:name)
   end
 
   def create
-    @service = Service.new(service_params)
+    service = Service.new(service_params)
 
-    if @service.save
-      redirect_to admin_services_path, notice: "Service created."
+    if service.save
+      redirect_to admin_services_path, notice: "Added #{service.name}."
     else
-      render :new, status: :unprocessable_entity
+      redirect_to admin_services_path, alert: service.errors.full_messages.to_sentence
     end
   end
 

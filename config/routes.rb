@@ -8,8 +8,10 @@ Rails.application.routes.draw do
   resources :tickets, only: [ :new, :create, :show, :update ]
 
   namespace :admin do
-    resources :services
-    resources :topics
+    # Services and topics are managed together on the services page, so there
+    # are no standalone "new" screens.
+    resources :services, except: [ :new ]
+    resources :topics, only: [ :create, :edit, :update, :destroy ]
     resources :users, only: [ :index, :show, :update ]
   end
 

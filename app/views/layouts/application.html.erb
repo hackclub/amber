@@ -29,8 +29,7 @@
             <%= link_to "New ticket", new_ticket_path, class: "text-sm text-gray-600 hover:text-gray-900" %>
             <% if admin? %>
               <div class="flex items-center gap-4 border-2 border-dashed border-orange-400 bg-orange-50 rounded-lg px-3 py-1">
-                <%= link_to "Services", admin_services_path, class: "text-sm text-gray-600 hover:text-gray-900" %>
-                <%= link_to "Topics", admin_topics_path, class: "text-sm text-gray-600 hover:text-gray-900" %>
+                <%= link_to "Services & topics", admin_services_path, class: "text-sm text-gray-600 hover:text-gray-900" %>
                 <%= link_to "People", admin_users_path, class: "text-sm text-gray-600 hover:text-gray-900" %>
               </div>
             <% end %>

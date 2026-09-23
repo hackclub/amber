@@ -23,8 +23,7 @@ actions [
 if user&.admin?
   context [
     mrkdwn_text(
-      "Manage <#{SlackNotifier.url_for_path('/admin/services')}|services>, " \
-      "<#{SlackNotifier.url_for_path('/admin/topics')}|topics> and " \
+      "Manage <#{SlackNotifier.url_for_path('/admin/services')}|services and topics> and " \
       "<#{SlackNotifier.url_for_path('/admin/users')}|people> on the web."
     )
   ]
