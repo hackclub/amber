@@ -1,0 +1,9 @@
+section(
+  "Your ticket is now *#{ticket.status.humanize.downcase}*\n" \
+  "*<#{SlackNotifier.ticket_url(ticket)}|#{ticket.title}>*",
+  markdown: true
+)
+
+context [
+  mrkdwn_text("#{ticket.service.name} ▸ #{ticket.topic.name}  ·  #{ticket.priority.humanize} priority")
+]

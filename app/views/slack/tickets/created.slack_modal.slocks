@@ -1,0 +1,12 @@
+title "Ticket created"
+close "Done"
+
+header "✅ Ticket ##{ticket.id} created"
+
+section "*#{ticket.title}*", markdown: true
+
+context [
+  mrkdwn_text("#{ticket.service.name} ▸ #{ticket.topic.name}  ·  #{ticket.priority.humanize} priority")
+]
+
+actions [ button("View ticket", "view_ticket", url: SlackNotifier.ticket_url(ticket)) ]

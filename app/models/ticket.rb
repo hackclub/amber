@@ -16,7 +16,22 @@ class Ticket < ApplicationRecord
     joins(:user).order(Arel.sql("users.priority_boost DESC, tickets.priority DESC, tickets.created_at ASC"))
   }
 
+  # Notifications live here rather than in the controllers so tickets filed
+  # from Slack notify identically to ones filed on the web.
+  after_create_commit :notify_created
+  after_update_commit :notify_status_changed, if: :saved_change_to_status?
+
   private
+
+  def notify_created
+    TicketMailer.created(self).deliver_later
+    SlackNotificationJob.perform_later(id, "created")
+  end
+
+  def notify_status_changed
+    TicketMailer.status_changed(self).deliver_later
+    SlackNotificationJob.perform_later(id, "status_changed")
+  end
 
   def topic_belongs_to_service
     return if topic.blank? || service.blank?

@@ -1,0 +1,14 @@
+section(
+  "*New ticket from #{ticket.user.name.presence || ticket.user.email}*\n" \
+  "*<#{SlackNotifier.ticket_url(ticket)}|#{ticket.title}>*",
+  markdown: true
+)
+
+context [
+  mrkdwn_text(
+    "#{ticket.service.name} ▸ #{ticket.topic.name}  ·  #{ticket.priority.humanize} priority" +
+    (ticket.user.priority_boost? ? "  ·  ⭐ VIP" : "")
+  )
+]
+
+section(ticket.message.to_s.truncate(500), markdown: true)

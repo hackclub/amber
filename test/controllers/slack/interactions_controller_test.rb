@@ -1,0 +1,155 @@
+require "test_helper"
+
+class Slack::InteractionsControllerTest < ActionDispatch::IntegrationTest
+  include SlackRequestHelpers
+
+  test "rejects a request with a bad signature" do
+    post slack_interactions_path,
+         params: interaction_body(type: "shortcut"),
+         headers: {
+           "CONTENT_TYPE" => "application/x-www-form-urlencoded",
+           "X-Slack-Request-Timestamp" => Time.now.to_i.to_s,
+           "X-Slack-Signature" => "v0=not-the-right-signature"
+         }
+
+    assert_response :unauthorized
+  end
+
+  test "rejects a replayed request" do
+    body = interaction_body(type: "shortcut")
+    stale = 10.minutes.ago.to_i.to_s
+    signature = "v0=" + OpenSSL::HMAC.hexdigest("SHA256", ENV.fetch("SLACK_SIGNING_SECRET"), "v0:#{stale}:#{body}")
+
+    post slack_interactions_path, params: body, headers: {
+      "CONTENT_TYPE" => "application/x-www-form-urlencoded",
+      "X-Slack-Request-Timestamp" => stale,
+      "X-Slack-Signature" => signature
+    }
+
+    assert_response :unauthorized
+  end
+
+  test "the global shortcut opens a modal" do
+    client = FakeSlackClient.new
+
+    with_slack_client(client) do
+      slack_post slack_interactions_path, interaction_body(
+        type: "shortcut", callback_id: "create_ticket", trigger_id: "trigger-1", user: { id: "U1" }
+      )
+    end
+
+    assert_response :success
+    view = client.calls[:views_open].sole[:view]
+    assert_equal "modal", view["type"]
+    assert_equal "create_ticket", view["callback_id"]
+  end
+
+  test "the message shortcut pre-fills the modal from the message" do
+    client = FakeSlackClient.new
+
+    with_slack_client(client) do
+      slack_post slack_interactions_path, interaction_body(
+        type: "message_action",
+        callback_id: "create_ticket_from_message",
+        trigger_id: "trigger-2",
+        user: { id: "U1" },
+        channel: { id: "C1" },
+        message: { ts: "1700000000.000100", text: "the website is on fire" }
+      )
+    end
+
+    assert_response :success
+    blocks = client.calls[:views_open].sole[:view]["blocks"]
+    details = blocks.find { |block| block["block_id"] == "message" }
+    url = blocks.find { |block| block["block_id"] == "url" }
+
+    assert_equal "the website is on fire", details.dig("element", "initial_value")
+    assert_equal "https://hackclub.slack.com/archives/C1/p1700000000", url.dig("element", "initial_value")
+  end
+
+  test "submitting the modal creates a ticket for the Slack user" do
+    client = FakeSlackClient.new
+
+    assert_difference -> { Ticket.count }, 1 do
+      with_slack_client(client) do
+        slack_post slack_interactions_path, interaction_body(submission_payload)
+      end
+    end
+
+    assert_response :success
+    assert_equal "update", response.parsed_body["response_action"]
+
+    ticket = Ticket.last
+    assert_equal "Homepage is down", ticket.title
+    assert_equal services(:website), ticket.service
+    assert_equal topics(:bug), ticket.topic
+    assert_equal "high", ticket.priority
+    assert_equal "U999", ticket.user.slack_id
+  end
+
+  test "a failed submission returns field errors instead of creating a ticket" do
+    payload = submission_payload
+    payload[:view][:state][:values][:title][:title][:value] = ""
+
+    assert_no_difference -> { Ticket.count } do
+      with_slack_client do
+        slack_post slack_interactions_path, interaction_body(payload)
+      end
+    end
+
+    assert_response :success
+    assert_equal "errors", response.parsed_body["response_action"]
+    assert response.parsed_body["errors"]["title"].present?
+  end
+
+  test "an admin can change a ticket's status from the Home tab" do
+    ticket = tickets(:website_bug)
+
+    with_slack_client do
+      slack_post slack_interactions_path, interaction_body(
+        type: "block_actions",
+        user: { id: users(:amber).slack_id },
+        actions: [ { action_id: "set_status", selected_option: { value: "#{ticket.id}:done" } } ]
+      )
+    end
+
+    assert_response :success
+    assert ticket.reload.done?
+  end
+
+  test "a non-admin cannot change a ticket's status from the Home tab" do
+    ticket = tickets(:website_bug)
+
+    with_slack_client do
+      slack_post slack_interactions_path, interaction_body(
+        type: "block_actions",
+        user: { id: "U-not-an-admin" },
+        actions: [ { action_id: "set_status", selected_option: { value: "#{ticket.id}:done" } } ]
+      )
+    end
+
+    assert_response :success
+    refute ticket.reload.done?
+  end
+
+  private
+
+  def submission_payload
+    {
+      type: "view_submission",
+      user: { id: "U999" },
+      view: {
+        callback_id: "create_ticket",
+        state: {
+          values: {
+            title: { title: { value: "Homepage is down" } },
+            topic: { topic: { selected_option: { value: "#{services(:website).id}:#{topics(:bug).id}" } } },
+            priority: { priority: { selected_option: { value: "high" } } },
+            url: { url: { value: "https://hackclub.com" } },
+            message: { message: { value: "It 500s on load." } }
+          }
+        }
+      }
+    }
+  end
+end

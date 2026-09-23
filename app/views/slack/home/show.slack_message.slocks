@@ -1,0 +1,61 @@
+status_labels = { "open" => "🟡 Open", "in_progress" => "🔵 In progress", "done" => "🟢 Done" }
+priority_labels = { "low" => "Low", "medium" => "Medium", "high" => "High", "urgent" => "🔴 Urgent" }
+
+if user&.admin?
+  header "Everything on your plate"
+  section(
+    tickets.any? ? "*#{tickets.size}* open and in-progress #{'ticket'.pluralize(tickets.size)}, VIP requesters and higher priority first." : "Nothing outstanding right now. 🎉",
+    markdown: true
+  )
+else
+  header "Your tickets"
+  section(
+    tickets.any? ? "Everything you've filed, newest first." : "You haven't filed anything yet.",
+    markdown: true
+  )
+end
+
+actions [
+  button("New ticket", "open_new_ticket", style: "primary"),
+  button("Open on the web", "open_web", url: SlackNotifier.url_for_path("/"))
+]
+
+if user&.admin?
+  context [
+    mrkdwn_text(
+      "Manage <#{SlackNotifier.url_for_path('/admin/services')}|services>, " \
+      "<#{SlackNotifier.url_for_path('/admin/topics')}|topics> and " \
+      "<#{SlackNotifier.url_for_path('/admin/users')}|people> on the web."
+    )
+  ]
+end
+
+divider
+
+tickets.each do |ticket|
+  details = [
+    ("*#{ticket.user.name.presence || ticket.user.email}*" if user&.admin?),
+    "#{ticket.service.name} ▸ #{ticket.topic.name}",
+    priority_labels[ticket.priority],
+    "#{time_ago_in_words(ticket.created_at)} ago"
+  ].compact.join("  ·  ")
+
+  text = "*<#{SlackNotifier.ticket_url(ticket)}|#{ticket.title}>*\n#{details}"
+
+  if user&.admin?
+    status_options = Ticket.statuses.keys.map { |status| option(status_labels[status], "#{ticket.id}:#{status}") }
+
+    section(
+      text,
+      markdown: true,
+      accessory: select_menu(
+        "set_status",
+        placeholder: "Status",
+        options: status_options,
+        initial_option: status_options[Ticket.statuses[ticket.status]]
+      )
+    )
+  else
+    section("#{text}  ·  #{status_labels[ticket.status]}", markdown: true)
+  end
+end

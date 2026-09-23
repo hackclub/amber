@@ -80,3 +80,6 @@ gem "dotenv-rails", "~> 3.2", groups: [:development, :test]
 gem "letter_opener", "~> 1.10", group: :development
 
 gem "json", "~> 2.21"
+
+gem "slocks", "~> 0.1.2"
+gem "slack-ruby-client", "~> 3.2"

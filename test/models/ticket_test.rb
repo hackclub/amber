@@ -41,4 +41,30 @@ class TicketTest < ActiveSupport::TestCase
     assert ticket.medium?
     assert ticket.open?
   end
+
+  test "creating a ticket notifies by email and Slack" do
+    assert_enqueued_emails 1 do
+      assert_enqueued_with job: SlackNotificationJob do
+        Ticket.create!(valid_attributes)
+      end
+    end
+  end
+
+  test "changing status notifies the requester by email and Slack" do
+    ticket = Ticket.create!(valid_attributes)
+
+    assert_enqueued_emails 1 do
+      assert_enqueued_with job: SlackNotificationJob, args: [ ticket.id, "status_changed" ] do
+        ticket.update!(status: :done)
+      end
+    end
+  end
+
+  test "editing something other than status does not notify" do
+    ticket = Ticket.create!(valid_attributes)
+
+    assert_no_enqueued_emails do
+      ticket.update!(title: "A different title")
+    end
+  end
 end

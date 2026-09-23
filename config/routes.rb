@@ -13,6 +13,11 @@ Rails.application.routes.draw do
     resources :users, only: [ :index, :show, :update ]
   end
 
+  namespace :slack do
+    post "interactions", to: "interactions#create"
+    post "events", to: "events#create"
+  end
+
   get "/auth/:provider/callback", to: "sessions#create"
   get "/auth/failure", to: "sessions#failure"
   delete "/logout", to: "sessions#destroy"

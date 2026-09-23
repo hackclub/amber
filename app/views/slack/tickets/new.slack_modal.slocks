@@ -1,0 +1,36 @@
+title "New ticket"
+submit "Create"
+close "Cancel"
+callback "create_ticket"
+
+topic_groups = services.map do |service|
+  option_group(
+    service.name,
+    service.topics.select(&:active?).map { |topic| option(topic.name, "#{service.id}:#{topic.id}") }
+  )
+end.reject { |group| group[:options].empty? }
+
+priority_options = Ticket.priorities.keys.map { |priority| option(priority.humanize, priority) }
+
+input "Title",
+      plain_text_input("title", placeholder: "Short summary", max_length: 250),
+      block_id: "title"
+
+input "Service and topic",
+      select_menu("topic", placeholder: "Pick one", option_groups: topic_groups),
+      block_id: "topic"
+
+input "Priority",
+      select_menu("priority", placeholder: "Priority", options: priority_options,
+                  initial_option: priority_options[Ticket.priorities["medium"]]),
+      block_id: "priority"
+
+input "Link",
+      url_input("url", initial_value: initial_url.presence),
+      block_id: "url",
+      optional: true
+
+input "Details",
+      plain_text_input("message", multiline: true, initial_value: initial_message.to_s.truncate(2900).presence),
+      block_id: "message",
+      hint: "Markdown is supported."

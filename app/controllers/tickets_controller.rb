@@ -11,7 +11,6 @@ class TicketsController < ApplicationController
     @ticket = current_user.tickets.new(ticket_params)
 
     if @ticket.save
-      TicketMailer.created(@ticket).deliver_later
       redirect_to @ticket, notice: "Ticket submitted."
     else
       @services = Service.active.includes(:topics).order(:name)
@@ -27,10 +26,7 @@ class TicketsController < ApplicationController
       return redirect_to @ticket, alert: "Only an admin can update a ticket's status."
     end
 
-    previous_status = @ticket.status
-
     if @ticket.update(status_params)
-      TicketMailer.status_changed(@ticket).deliver_later if @ticket.status != previous_status
       redirect_to request.referer.presence || @ticket, notice: "Ticket updated."
     else
       redirect_to @ticket, alert: @ticket.errors.full_messages.to_sentence
