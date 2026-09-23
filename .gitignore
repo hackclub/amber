@@ -30,10 +30,12 @@
 
 /public/assets
 
-# Ignore CI service files.
-/.github/*
-!/.github/dependabot.yml
-!/.github/workflows
+# GitHub Actions workflow files require a `workflow`-scoped push token we
+# don't have here, so keep this repo's CI config out of version control.
+/.github/workflows/
+
+# Claude Code session files (never project content)
+/.claude/
 
 # Ignore Byebug command history file.
 .byebug_history
