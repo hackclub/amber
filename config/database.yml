@@ -85,18 +85,6 @@ test:
 # for a full overview on how database connection configuration can be specified.
 #
 production:
-  primary: &primary_production
+  primary:
     <<: *default
     url: <%= ENV["DATABASE_URL"] %>
-  # Solid Cache/Queue/Cable normally get their own physical database each,
-  # but for a small internal app it's simpler to share the one Postgres
-  # instance above — their tables don't collide with the app's own.
-  cache:
-    <<: *primary_production
-    migrations_paths: db/cache_migrate
-  queue:
-    <<: *primary_production
-    migrations_paths: db/queue_migrate
-  cable:
-    <<: *primary_production
-    migrations_paths: db/cable_migrate
