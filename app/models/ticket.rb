@@ -3,8 +3,23 @@ class Ticket < ApplicationRecord
   belongs_to :service
   belongs_to :topic
 
+  has_many :notes, class_name: "TicketNote", dependent: :destroy
+
   enum :priority, { low: 0, medium: 1, high: 2, urgent: 3 }, default: :low
-  enum :status, { open: 0, in_progress: 1, done: 2 }, default: :open
+  enum :status, { open: 0, in_progress: 1, done: 2, not_doing: 3 }, default: :open
+
+  # "Your ticket is now #{status.humanize.downcase}" reads badly for not_doing,
+  # so each state gets a phrase that fits in a sentence.
+  STATUS_SENTENCES = {
+    "open" => "open again",
+    "in_progress" => "in progress",
+    "done" => "done",
+    "not_doing" => "closed as not planned"
+  }.freeze
+
+  def status_sentence
+    STATUS_SENTENCES.fetch(status, status.humanize.downcase)
+  end
 
   validates :title, presence: true
   validates :message, presence: true

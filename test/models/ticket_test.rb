@@ -48,6 +48,39 @@ class TicketTest < ActiveSupport::TestCase
     assert_equal Ticket.columns_hash["priority"].default.to_i, Ticket.priorities[ticket.priority]
   end
 
+  test "not doing is a closed state, so it drops off the queue" do
+    ticket = Ticket.create!(valid_attributes)
+    assert_includes Ticket.needs_attention, ticket
+
+    ticket.update!(status: :not_doing)
+
+    refute_includes Ticket.needs_attention, ticket
+    assert_includes Ticket.needs_attention, Ticket.create!(valid_attributes)
+  end
+
+  test "every status reads as a sentence" do
+    ticket = Ticket.new(valid_attributes)
+
+    Ticket.statuses.each_key do |status|
+      ticket.status = status
+      assert ticket.status_sentence.present?
+      refute_match(/_/, ticket.status_sentence, "#{status} still reads like an enum key")
+    end
+
+    ticket.status = :not_doing
+    assert_equal "closed as not planned", ticket.status_sentence
+  end
+
+  test "closing as not doing still notifies the requester" do
+    ticket = Ticket.create!(valid_attributes)
+
+    assert_enqueued_emails 1 do
+      assert_enqueued_with job: SlackNotificationJob, args: [ ticket.id, "status_changed" ] do
+        ticket.update!(status: :not_doing)
+      end
+    end
+  end
+
   test "creating a ticket notifies by email and Slack" do
     assert_enqueued_emails 1 do
       assert_enqueued_with job: SlackNotificationJob do

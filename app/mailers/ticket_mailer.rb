@@ -8,6 +8,6 @@ class TicketMailer < ApplicationMailer
   def status_changed(ticket)
     @ticket = ticket
 
-    mail to: ticket.user.email, subject: "Your ticket \"#{ticket.title}\" is now #{ticket.status.humanize}"
+    mail to: ticket.user.email, subject: "Your ticket \"#{ticket.title}\" is now #{ticket.status_sentence}"
   end
 end

@@ -20,7 +20,7 @@ class SlackNotifier
       return if ticket.user.slack_id.blank?
 
       dm(ticket.user.slack_id,
-         "Your ticket is now #{ticket.status.humanize.downcase}",
+         "Your ticket is now #{ticket.status_sentence}",
          "slack/notifications/ticket_status_changed",
          ticket: ticket)
     end

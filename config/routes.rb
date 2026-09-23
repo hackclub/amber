@@ -5,7 +5,9 @@ Rails.application.routes.draw do
 
   root "dashboard#index"
 
-  resources :tickets, only: [ :new, :create, :show, :update ]
+  resources :tickets, only: [ :new, :create, :show, :update ] do
+    resources :notes, only: [ :create, :destroy ], controller: "ticket_notes"
+  end
 
   namespace :admin do
     # Services and topics are managed together on the services page, so there

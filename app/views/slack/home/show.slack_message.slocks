@@ -1,4 +1,4 @@
-status_labels = { "open" => "🟡 Open", "in_progress" => "🔵 In progress", "done" => "🟢 Done" }
+status_labels = { "open" => "🟡 Open", "in_progress" => "🔵 In progress", "done" => "🟢 Done", "not_doing" => "⚪ Not doing" }
 priority_labels = { "low" => "Low", "medium" => "Medium", "high" => "High", "urgent" => "🔴 Urgent" }
 
 if user&.admin?

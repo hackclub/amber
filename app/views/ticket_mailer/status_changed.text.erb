@@ -1,4 +1,4 @@
-Your ticket is now <%= @ticket.status.humanize.downcase %>
+Your ticket is now <%= @ticket.status_sentence %>
 
 <%= @ticket.title %>
 <%= "\n#{@ticket.status_note}\n" if @ticket.status_note.present? %>

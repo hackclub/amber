@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_09_23_185619) do
+ActiveRecord::Schema[8.1].define(version: 2026_09_23_191216) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -64,6 +64,16 @@ ActiveRecord::Schema[8.1].define(version: 2026_09_23_185619) do
     t.index ["name"], name: "index_services_on_name", unique: true
   end
 
+  create_table "ticket_notes", force: :cascade do |t|
+    t.bigint "author_id", null: false
+    t.text "body", null: false
+    t.datetime "created_at", null: false
+    t.bigint "ticket_id", null: false
+    t.datetime "updated_at", null: false
+    t.index ["author_id"], name: "index_ticket_notes_on_author_id"
+    t.index ["ticket_id"], name: "index_ticket_notes_on_ticket_id"
+  end
+
   create_table "tickets", force: :cascade do |t|
     t.datetime "created_at", null: false
     t.text "message", null: false
@@ -111,6 +121,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_09_23_185619) do
   add_foreign_key "oauth_grants", "users"
   add_foreign_key "oauth_tokens", "oauth_clients"
   add_foreign_key "oauth_tokens", "users"
+  add_foreign_key "ticket_notes", "tickets"
+  add_foreign_key "ticket_notes", "users", column: "author_id"
   add_foreign_key "tickets", "services"
   add_foreign_key "tickets", "topics"
   add_foreign_key "tickets", "users"

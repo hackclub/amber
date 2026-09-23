@@ -177,6 +177,56 @@ class McpControllerTest < ActionDispatch::IntegrationTest
     assert_no_match(/Slack/, text_content)
   end
 
+  test "an admin can add an internal note" do
+    ticket = tickets(:website_bug)
+
+    assert_difference -> { ticket.notes.count }, 1 do
+      call_tool("add_internal_note", { "id" => ticket.id, "note" => "Waiting on a reply from ops." }, token: @admin_token)
+    end
+
+    refute response.parsed_body.dig("result", "isError")
+    assert_equal users(:amber), ticket.notes.last.author
+  end
+
+  test "notes append rather than overwrite" do
+    ticket = tickets(:website_bug)
+
+    call_tool("add_internal_note", { "id" => ticket.id, "note" => "first" }, token: @admin_token)
+    call_tool("add_internal_note", { "id" => ticket.id, "note" => "second" }, token: @admin_token)
+
+    assert_equal [ "first", "second" ], ticket.notes.oldest_first.pluck(:body)
+  end
+
+  test "internal notes are hidden from the requester's own ticket" do
+    ticket = tickets(:website_bug)
+    ticket.notes.create!(body: "Do not show this to them", author: users(:amber))
+
+    call_tool("get_ticket", { "id" => ticket.id }, token: @requester_token)
+
+    assert_no_match(/Do not show this to them/, text_content)
+    assert_no_match(/Internal notes/, text_content)
+  end
+
+  test "an admin sees internal notes on a ticket" do
+    ticket = tickets(:website_bug)
+    ticket.notes.create!(body: "Chased this up on Tuesday", author: users(:amber))
+
+    call_tool("get_ticket", { "id" => ticket.id }, token: @admin_token)
+
+    assert_match "Chased this up on Tuesday", text_content
+    assert_match "Internal notes", text_content
+  end
+
+  test "a non-admin can't add an internal note" do
+    ticket = tickets(:website_bug)
+
+    assert_no_difference -> { ticket.notes.count } do
+      call_tool("add_internal_note", { "id" => ticket.id, "note" => "sneaky" }, token: @requester_token)
+    end
+
+    assert response.parsed_body.dig("result", "isError")
+  end
+
   test "GET is not supported" do
     get mcp_path, headers: { "Authorization" => "Bearer #{@requester_token}" }
 

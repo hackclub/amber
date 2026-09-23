@@ -114,8 +114,23 @@ class McpServer
         }
       },
       {
+        "name" => "add_internal_note",
+        "description" => "Add a private working note to a ticket. Only admins ever see these — the requester " \
+                         "is not emailed or DM'd. Use this for anything you wouldn't say to them directly. " \
+                         "Notes append, so this never overwrites an earlier one.",
+        "inputSchema" => {
+          "type" => "object",
+          "properties" => {
+            "id" => { "type" => "integer", "description" => "Ticket id" },
+            "note" => { "type" => "string", "description" => "The note. Markdown is supported." }
+          },
+          "required" => [ "id", "note" ]
+        }
+      },
+      {
         "name" => "update_ticket_status",
-        "description" => "Change a ticket's status. The optional note is emailed and DM'd to the requester.",
+        "description" => "Change a ticket's status. WARNING: the optional note here is SENT to the requester by " \
+                         "email and Slack DM — for a private note use add_internal_note instead.",
         "inputSchema" => {
           "type" => "object",
           "properties" => {
@@ -193,6 +208,7 @@ class McpServer
     when "list_my_tickets" then list_my_tickets(args)
     when "get_ticket" then get_ticket(args)
     when "my_queue" then my_queue(args)
+    when "add_internal_note" then add_internal_note(args)
     when "update_ticket_status" then update_ticket_status(args)
     when "create_service" then create_service(args)
     when "update_service" then update_service(args)
@@ -267,6 +283,15 @@ class McpServer
     "#{tickets.size} waiting on you:\n" + tickets.map { |ticket| summarize(ticket, requester: true) }.join("\n")
   end
 
+  def add_internal_note(args)
+    ticket = Ticket.find(args["id"])
+    note = ticket.notes.new(body: args["note"], author: user)
+
+    return [ "Could not add it: #{note.errors.full_messages.to_sentence}" ] unless note.save
+
+    "Added a private note to ##{ticket.id}. It has #{ticket.notes.count} #{'note'.pluralize(ticket.notes.count)} now."
+  end
+
   def update_ticket_status(args)
     ticket = Ticket.find(args["id"])
 
@@ -275,7 +300,7 @@ class McpServer
     end
 
     notified = ticket.user.slack_id.present? ? " #{ticket.user.name.presence || 'They'} will get an email and a Slack DM." : " They'll get an email."
-    "Ticket ##{ticket.id} is now #{ticket.status.humanize.downcase}.#{notified}"
+    "Ticket ##{ticket.id} is now #{ticket.status_sentence}.#{notified}"
   end
 
   def create_service(args)
@@ -357,7 +382,16 @@ class McpServer
 
     if full
       lines << "\n#{ticket.message}"
-      lines << "\nLatest update: #{ticket.status_note}" if ticket.status_note.present?
+      lines << "\nLatest update (the requester has seen this): #{ticket.status_note}" if ticket.status_note.present?
+
+      # Private notes are admin-only, and get_ticket is reachable by the
+      # requester for their own ticket.
+      if user.admin? && ticket.notes.any?
+        lines << "\nInternal notes (private):"
+        ticket.notes.oldest_first.each do |note|
+          lines << "- #{note.created_at.to_fs(:short)} #{note.author.name.presence || note.author.email}: #{note.body}"
+        end
+      end
     end
 
     lines.join("\n")
