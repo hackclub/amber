@@ -2,12 +2,12 @@
   <div class="max-w-sm mx-auto mt-20 text-center">
     <h1 class="text-2xl font-bold mb-2">Tickets</h1>
     <p class="text-gray-600 mb-6">Sign in to file a ticket or see what's been filed for you.</p>
-    <%= button_to "Sign in with Hack Club", "/auth/hackclub", method: :post,
+    <%= button_to "Sign in with Hack Club", "/auth/hackclub", method: :post, data: { turbo: false },
           class: "inline-block bg-red-600 text-white px-4 py-2 rounded-md font-medium hover:bg-red-700 cursor-pointer" %>
     <% if Rails.env.development? %>
       <p class="mt-4 text-xs text-gray-400">
         No Hack Club Auth app registered yet &mdash;
-        <%= button_to "sign in as a test user", "/auth/developer", method: :post, class: "underline bg-transparent border-0 p-0 cursor-pointer text-gray-500" %>
+        <%= button_to "sign in as a test user", "/auth/developer", method: :post, data: { turbo: false }, class: "underline bg-transparent border-0 p-0 cursor-pointer text-gray-500" %>
         instead.
       </p>
     <% end %>
