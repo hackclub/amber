@@ -35,7 +35,7 @@
 
   <div>
     <%= f.label :priority, class: "block text-sm font-medium text-gray-700 mb-1" %>
-    <%= f.select :priority, Ticket.priorities.keys.map { |p| [ p.humanize, p ] }, { selected: ticket.priority || "medium" },
+    <%= f.select :priority, Ticket.priorities.keys.map { |p| [ p.humanize, p ] }, { selected: ticket.priority },
           class: input_classes %>
   </div>
 

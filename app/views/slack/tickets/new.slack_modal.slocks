@@ -22,7 +22,7 @@ input "Service and topic",
 
 input "Priority",
       select_menu("priority", placeholder: "Priority", options: priority_options,
-                  initial_option: priority_options[Ticket.priorities["medium"]]),
+                  initial_option: priority_options[Ticket.priorities[Ticket.new.priority]]),
       block_id: "priority"
 
 input "Link",

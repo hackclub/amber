@@ -3,7 +3,7 @@ class Ticket < ApplicationRecord
   belongs_to :service
   belongs_to :topic
 
-  enum :priority, { low: 0, medium: 1, high: 2, urgent: 3 }, default: :medium
+  enum :priority, { low: 0, medium: 1, high: 2, urgent: 3 }, default: :low
   enum :status, { open: 0, in_progress: 1, done: 2 }, default: :open
 
   validates :title, presence: true

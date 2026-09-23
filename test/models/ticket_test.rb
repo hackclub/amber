@@ -35,11 +35,17 @@ class TicketTest < ActiveSupport::TestCase
     assert ticket.valid?
   end
 
-  test "defaults to medium priority and open status" do
+  test "defaults to low priority and open status" do
     ticket = Ticket.create!(valid_attributes)
 
-    assert ticket.medium?
+    assert ticket.low?
     assert ticket.open?
+  end
+
+  test "the database default matches the model default" do
+    ticket = Ticket.create!(valid_attributes)
+
+    assert_equal Ticket.columns_hash["priority"].default.to_i, Ticket.priorities[ticket.priority]
   end
 
   test "creating a ticket notifies by email and Slack" do

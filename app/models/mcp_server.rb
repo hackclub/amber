@@ -72,7 +72,7 @@ class McpServer
             "service" => { "type" => "string", "description" => "Service name, e.g. Website" },
             "topic" => { "type" => "string", "description" => "Topic name within that service, e.g. Bug" },
             "message" => { "type" => "string", "description" => "The details. Markdown is supported." },
-            "priority" => { "type" => "string", "enum" => Ticket.priorities.keys, "description" => "Defaults to medium" },
+            "priority" => { "type" => "string", "enum" => Ticket.priorities.keys, "description" => "Defaults to #{Ticket.new.priority}" },
             "url" => { "type" => "string", "description" => "Optional link to something relevant" }
           },
           "required" => [ "title", "service", "topic", "message" ]
@@ -231,7 +231,7 @@ class McpServer
       message: args["message"],
       service: service,
       topic: topic,
-      priority: args["priority"].presence || "medium",
+      priority: args["priority"].presence || Ticket.new.priority,
       url: args["url"].presence
     )
 
