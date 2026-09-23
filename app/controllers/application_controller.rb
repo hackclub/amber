@@ -27,6 +27,9 @@ class ApplicationController < ActionController::Base
   def require_login
     return if current_user
 
+    # Remembered so signing in lands you where you were headed — which the
+    # OAuth consent screen depends on.
+    session[:return_to] = request.fullpath if request.get? || request.head?
     redirect_to root_path, alert: "Please sign in to continue."
   end
 

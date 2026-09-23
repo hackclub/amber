@@ -1,5 +1,7 @@
 class User < ApplicationRecord
   has_many :tickets, dependent: :destroy
+  has_many :oauth_tokens, dependent: :delete_all
+  has_many :oauth_grants, dependent: :delete_all
 
   validates :sub, presence: true, uniqueness: true
   validates :email, presence: true

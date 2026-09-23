@@ -30,6 +30,35 @@
     </div>
   </div>
 
+  <% if @connections.any? %>
+    <div class="bg-white border border-gray-200 rounded-lg p-4 mb-6">
+      <h2 class="font-semibold mb-1">Connected apps</h2>
+      <p class="text-sm text-gray-500 mb-4">Apps you've approved through OAuth.</p>
+
+      <div class="divide-y divide-gray-200">
+        <% @connections.each do |connection| %>
+          <div class="py-2 flex items-center justify-between gap-4">
+            <div>
+              <p class="text-sm font-medium text-gray-900"><%= connection.oauth_client.name %></p>
+              <p class="text-xs text-gray-500">Connected <%= time_ago_in_words(connection.created_at) %> ago</p>
+            </div>
+            <%= button_to "Disconnect", connection_settings_path(connection), method: :delete,
+                  class: "text-sm text-gray-500 hover:text-gray-900 underline bg-transparent border-0 p-0 cursor-pointer" %>
+          </div>
+        <% end %>
+      </div>
+    </div>
+  <% end %>
+
+  <div class="bg-white border border-gray-200 rounded-lg p-4 mb-6">
+    <h2 class="font-semibold mb-1">Connect it to Claude (web or desktop)</h2>
+    <p class="text-sm text-gray-500 mb-3">
+      Settings &rsaquo; Connectors &rsaquo; Add custom connector, then paste this URL. You'll be asked to approve it.
+    </p>
+    <pre class="bg-gray-900 text-gray-100 rounded-md p-3 text-xs overflow-x-auto"><code><%= mcp_url %></code></pre>
+    <p class="text-xs text-gray-400 mt-2">No token needed — it signs you in through Hack Club Auth.</p>
+  </div>
+
   <div class="bg-white border border-gray-200 rounded-lg p-4">
     <h2 class="font-semibold mb-1">Connect it to Claude Code</h2>
     <p class="text-sm text-gray-500 mb-3">Run this with your token in place of <code>YOUR_TOKEN</code>:</p>

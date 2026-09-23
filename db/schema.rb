@@ -10,9 +10,51 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_09_23_044100) do
+ActiveRecord::Schema[8.1].define(version: 2026_09_23_050335) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
+
+  create_table "oauth_clients", force: :cascade do |t|
+    t.string "client_id"
+    t.string "client_secret_digest"
+    t.datetime "created_at", null: false
+    t.string "name"
+    t.string "redirect_uris", default: [], array: true
+    t.datetime "updated_at", null: false
+    t.index ["client_id"], name: "index_oauth_clients_on_client_id", unique: true
+  end
+
+  create_table "oauth_grants", force: :cascade do |t|
+    t.string "code_challenge"
+    t.string "code_digest"
+    t.datetime "created_at", null: false
+    t.datetime "expires_at"
+    t.bigint "oauth_client_id", null: false
+    t.string "redirect_uri"
+    t.string "resource"
+    t.string "scope"
+    t.datetime "updated_at", null: false
+    t.bigint "user_id", null: false
+    t.index ["code_digest"], name: "index_oauth_grants_on_code_digest", unique: true
+    t.index ["oauth_client_id"], name: "index_oauth_grants_on_oauth_client_id"
+    t.index ["user_id"], name: "index_oauth_grants_on_user_id"
+  end
+
+  create_table "oauth_tokens", force: :cascade do |t|
+    t.string "access_token_digest"
+    t.datetime "created_at", null: false
+    t.datetime "expires_at"
+    t.bigint "oauth_client_id", null: false
+    t.string "refresh_token_digest"
+    t.datetime "revoked_at"
+    t.string "scope"
+    t.datetime "updated_at", null: false
+    t.bigint "user_id", null: false
+    t.index ["access_token_digest"], name: "index_oauth_tokens_on_access_token_digest", unique: true
+    t.index ["oauth_client_id"], name: "index_oauth_tokens_on_oauth_client_id"
+    t.index ["refresh_token_digest"], name: "index_oauth_tokens_on_refresh_token_digest", unique: true
+    t.index ["user_id"], name: "index_oauth_tokens_on_user_id"
+  end
 
   create_table "services", force: :cascade do |t|
     t.boolean "active", default: true, null: false
@@ -65,6 +107,10 @@ ActiveRecord::Schema[8.1].define(version: 2026_09_23_044100) do
     t.index ["sub"], name: "index_users_on_sub", unique: true
   end
 
+  add_foreign_key "oauth_grants", "oauth_clients"
+  add_foreign_key "oauth_grants", "users"
+  add_foreign_key "oauth_tokens", "oauth_clients"
+  add_foreign_key "oauth_tokens", "users"
   add_foreign_key "tickets", "services"
   add_foreign_key "tickets", "topics"
   add_foreign_key "tickets", "users"

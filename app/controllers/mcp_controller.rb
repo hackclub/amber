@@ -32,13 +32,19 @@ class McpController < ActionController::Base
 
   private
 
+  # Two ways in: a personal API token (simplest for CLI clients that can send a
+  # header) or an OAuth access token (for clients that can only do OAuth).
   def authenticate_api_token!
     token = request.authorization.to_s[/\ABearer (.+)\z/i, 1]
-    @current_user = User.authenticate_api_token(token)
+    @current_user = User.authenticate_api_token(token) || OauthToken.authenticate(token)&.user
 
     return if @current_user
 
-    response.set_header("WWW-Authenticate", 'Bearer realm="tickets"')
+    # RFC 9728: point the client at discovery so it can start the OAuth dance.
+    response.set_header(
+      "WWW-Authenticate",
+      %(Bearer realm="tickets", resource_metadata="#{root_url.chomp('/')}/.well-known/oauth-protected-resource")
+    )
     render json: { "jsonrpc" => "2.0", "id" => nil,
                    "error" => { "code" => McpServer::INVALID_REQUEST, "message" => "Invalid or missing API token" } },
            status: :unauthorized

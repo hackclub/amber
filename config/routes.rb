@@ -16,9 +16,25 @@ Rails.application.routes.draw do
   post "/mcp", to: "mcp#create", as: :mcp
   match "/mcp", to: "mcp#unsupported", via: [ :get, :delete ]
 
+  # OAuth, so MCP clients that can't send a custom header (Claude's connector
+  # UI, for one) can still authenticate. Discovery paths are fixed by spec.
+  get "/.well-known/oauth-protected-resource", to: "well_known#protected_resource"
+  get "/.well-known/oauth-protected-resource/mcp", to: "well_known#protected_resource"
+  get "/.well-known/oauth-authorization-server", to: "well_known#authorization_server"
+  get "/.well-known/oauth-authorization-server/mcp", to: "well_known#authorization_server"
+
+  namespace :oauth do
+    post "register", to: "clients#create"
+    get "authorize", to: "authorizations#new"
+    post "authorize", to: "authorizations#create"
+    post "token", to: "tokens#create"
+    post "revoke", to: "tokens#revoke"
+  end
+
   resource :settings, only: [ :show ] do
     post :api_token
     delete :api_token, action: :revoke_api_token
+    delete "connections/:id", action: :revoke_connection, as: :connection
   end
 
   namespace :slack do

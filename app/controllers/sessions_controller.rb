@@ -4,8 +4,10 @@ class SessionsController < ApplicationController
   def create
     auth = request.env["omniauth.auth"]
     user = User.from_omniauth(auth)
+    destination = session.delete(:return_to)
+    reset_session # new session id whenever privileges change
     session[:user_id] = user.id
-    redirect_to root_path, notice: "Signed in as #{user.name.presence || user.email}."
+    redirect_to (destination.presence || root_path), notice: "Signed in as #{user.name.presence || user.email}."
   end
 
   def destroy
