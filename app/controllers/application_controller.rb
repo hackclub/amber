@@ -12,6 +12,12 @@ class ApplicationController < ActionController::Base
 
   private
 
+  # Turbo Stream responses don't redirect, so the flash has to be swapped in
+  # directly rather than surviving to the next page load.
+  def flash_stream(notice: nil, alert: nil)
+    turbo_stream.replace("flash", partial: "layouts/flash", locals: { notice: notice, alert: alert })
+  end
+
   def start_request_timer
     Current.started_at = Time.current
   end

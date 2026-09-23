@@ -1,6 +1,8 @@
 require "test_helper"
 
 class TicketsControllerTest < ActionDispatch::IntegrationTest
+  include ActionView::RecordIdentifier
+
   def sign_in(user)
     get "/auth/developer/callback", params: { name: user.name, email: user.email }
   end
@@ -58,6 +60,45 @@ class TicketsControllerTest < ActionDispatch::IntegrationTest
     patch ticket_path(ticket), params: { ticket: { status: "in_progress" } }
 
     assert_nil ticket.reload.status_note
+  end
+
+  test "changing status over turbo updates the page in place" do
+    sign_in(users(:amber))
+    ticket = tickets(:website_bug)
+
+    patch ticket_path(ticket), params: { ticket: { status: "done", status_note: "Shipped." } }, as: :turbo_stream
+
+    assert_response :success
+    assert_equal "text/vnd.turbo-stream.html", response.media_type
+    [ :status, :status_note, :status_form ].each do |part|
+      assert_match %(action="replace" target="#{dom_id(ticket, part)}"), response.body
+    end
+    # The dashboard's queue is refreshed by the same response, so a ticket
+    # that just closed drops out of it without a reload.
+    assert_match %(action="replace" target="queue"), response.body
+    assert_match "Shipped.", response.body
+    assert ticket.reload.done?
+  end
+
+  test "a failed status change over turbo only reports the error" do
+    sign_in(users(:amber))
+    ticket = tickets(:website_bug)
+
+    patch ticket_path(ticket), params: { ticket: { status: "nonsense" } }, as: :turbo_stream
+
+    assert_response :success
+    assert_match %(target="flash"), response.body
+    assert_no_match(/target="queue"/, response.body)
+  end
+
+  test "status changes still work without turbo" do
+    sign_in(users(:amber))
+    ticket = tickets(:website_bug)
+
+    patch ticket_path(ticket), params: { ticket: { status: "done" } }
+
+    assert_response :redirect
+    assert ticket.reload.done?
   end
 
   test "a non-admin cannot change a ticket's status" do

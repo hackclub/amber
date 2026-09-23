@@ -121,6 +121,17 @@ class McpControllerTest < ActionDispatch::IntegrationTest
     assert_equal "Shipped.", ticket.status_note
   end
 
+  test "an invalid status is reported rather than crashing" do
+    ticket = tickets(:website_bug)
+
+    call_tool("update_ticket_status", { "id" => ticket.id, "status" => "wontfix" }, token: @admin_token)
+
+    assert_response :success
+    assert response.parsed_body.dig("result", "isError")
+    assert_match "not_doing", text_content
+    assert_equal "open", ticket.reload.status
+  end
+
   test "a non-admin cannot update a status" do
     ticket = tickets(:website_bug)
 

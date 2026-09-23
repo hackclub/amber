@@ -26,18 +26,48 @@ class TicketsController < ApplicationController
       return redirect_to @ticket, alert: "Only an admin can update a ticket's status."
     end
 
+    status = status_params[:status]
+
+    # Assigning an unknown value to an enum raises rather than failing
+    # validation, so a stale form or a hand-rolled request would 500.
+    unless Ticket.statuses.key?(status)
+      return respond_with_status_change(false, error: "#{status.inspect} isn't a status")
+    end
+
     # The note is assigned even when the form didn't send one, so a quick status
     # change from the dashboard clears a stale note rather than re-sending it.
-    attributes = { status: status_params[:status], status_note: params.dig(:ticket, :status_note) }
+    updated = @ticket.update(status: status, status_note: params.dig(:ticket, :status_note))
 
-    if @ticket.update(attributes)
-      redirect_to request.referer.presence || @ticket, notice: "Ticket updated."
-    else
-      redirect_to @ticket, alert: @ticket.errors.full_messages.to_sentence
-    end
+    respond_with_status_change(updated, error: @ticket.errors.full_messages.to_sentence)
   end
 
   private
+
+  def respond_with_status_change(updated, error:)
+    respond_to do |format|
+      format.turbo_stream { render turbo_stream: status_streams(updated, error) }
+      format.html do
+        updated ? redirect_to(request.referer.presence || @ticket, notice: "Ticket updated.")
+                : redirect_to(@ticket, alert: error)
+      end
+    end
+  end
+
+  # Sent to both pages that can change a status. Turbo drops any stream whose
+  # target isn't on the current page, so the ticket page gets its badge/note/
+  # form back and the dashboard gets its queue re-rendered.
+  def status_streams(updated, error)
+    streams = [ updated ? flash_stream(notice: "Ticket updated.") : flash_stream(alert: error) ]
+    return streams unless updated
+
+    streams + [
+      turbo_stream.replace(helpers.dom_id(@ticket, :status), partial: "tickets/status_badge", locals: { ticket: @ticket }),
+      turbo_stream.replace(helpers.dom_id(@ticket, :status_note), partial: "tickets/status_note", locals: { ticket: @ticket }),
+      turbo_stream.replace(helpers.dom_id(@ticket, :status_form), partial: "tickets/status_form", locals: { ticket: @ticket }),
+      turbo_stream.replace("queue", partial: "dashboard/queue",
+                           locals: { tickets: Ticket.needs_attention.ordered_for_admin.includes(:user, :service, :topic) })
+    ]
+  end
 
   def set_ticket
     @ticket = Ticket.find(params[:id])

@@ -48,12 +48,7 @@
     </nav>
 
     <main class="max-w-5xl mx-auto px-4 sm:px-6 py-8">
-      <% if notice %>
-        <div class="mb-4 rounded-md bg-green-50 text-green-800 px-4 py-3 text-sm"><%= notice %></div>
-      <% end %>
-      <% if alert %>
-        <div class="mb-4 rounded-md bg-red-50 text-red-800 px-4 py-3 text-sm"><%= alert %></div>
-      <% end %>
+      <%= render "layouts/flash", notice: notice, alert: alert %>
 
       <%= yield %>
     </main>

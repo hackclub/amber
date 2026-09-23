@@ -295,6 +295,11 @@ class McpServer
   def update_ticket_status(args)
     ticket = Ticket.find(args["id"])
 
+    # Assigning an unknown enum value raises, so check before it reaches the model.
+    unless Ticket.statuses.key?(args["status"])
+      return [ "#{args['status'].inspect} isn't a status. Valid: #{Ticket.statuses.keys.join(', ')}." ]
+    end
+
     unless ticket.update(status: args["status"], status_note: args["note"].presence)
       return [ "Could not update it: #{ticket.errors.full_messages.to_sentence}" ]
     end
