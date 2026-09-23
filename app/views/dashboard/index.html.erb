@@ -1,0 +1,73 @@
+<% if current_user.nil? %>
+  <div class="max-w-sm mx-auto mt-20 text-center">
+    <h1 class="text-2xl font-bold mb-2">Tickets</h1>
+    <p class="text-gray-600 mb-6">Sign in to file a ticket or see what's been filed for you.</p>
+    <%= button_to "Sign in with Hack Club", "/auth/hackclub", method: :post,
+          class: "inline-block bg-red-600 text-white px-4 py-2 rounded-md font-medium hover:bg-red-700 cursor-pointer" %>
+    <% if Rails.env.development? %>
+      <p class="mt-4 text-xs text-gray-400">
+        No Hack Club Auth app registered yet &mdash;
+        <%= button_to "sign in as a test user", "/auth/developer", method: :post, class: "underline bg-transparent border-0 p-0 cursor-pointer text-gray-500" %>
+        instead.
+      </p>
+    <% end %>
+  </div>
+<% elsif admin? %>
+  <h1 class="text-2xl font-bold mb-1">Everything on your plate</h1>
+  <p class="text-gray-600 mb-6">Open and in-progress tickets, VIP requesters and higher priority first.</p>
+
+  <% if @tickets.empty? %>
+    <p class="text-gray-500">Nothing outstanding right now.</p>
+  <% else %>
+    <div class="divide-y divide-gray-200 bg-white rounded-lg border border-gray-200">
+      <% @tickets.each do |ticket| %>
+        <div class="p-4 flex items-center gap-4">
+          <%= avatar_tag(ticket.user, css_class: "size-9 rounded-full") %>
+
+          <div class="flex-1 min-w-0">
+            <div class="flex items-center gap-2 flex-wrap">
+              <%= link_to ticket.title, ticket_path(ticket), class: "font-medium text-gray-900 hover:underline" %>
+              <span class="text-xs px-2 py-0.5 rounded-full <%= priority_badge_classes(ticket.priority) %>"><%= ticket.priority.humanize %></span>
+              <% if ticket.user.priority_boost? %>
+                <span class="text-xs px-2 py-0.5 rounded-full bg-purple-100 text-purple-700">VIP</span>
+              <% end %>
+            </div>
+            <p class="text-sm text-gray-500 truncate">
+              <%= ticket.user.name.presence || ticket.user.email %> &middot;
+              <%= ticket.service.name %> &rsaquo; <%= ticket.topic.name %> &middot;
+              <%= time_ago_in_words(ticket.created_at) %> ago
+            </p>
+          </div>
+
+          <%= form_with model: ticket, url: ticket_path(ticket), method: :patch, class: "shrink-0" do |f| %>
+            <%= f.select :status, Ticket.statuses.keys.map { |s| [s.humanize, s] }, {}, class: "text-sm border-gray-300 rounded-md", onchange: "this.form.requestSubmit()" %>
+          <% end %>
+        </div>
+      <% end %>
+    </div>
+  <% end %>
+<% else %>
+  <div class="flex items-center justify-between mb-6">
+    <h1 class="text-2xl font-bold">Your tickets</h1>
+    <%= link_to "New ticket", new_ticket_path, class: "bg-red-600 text-white px-4 py-2 rounded-md font-medium hover:bg-red-700" %>
+  </div>
+
+  <% if @tickets.empty? %>
+    <p class="text-gray-500">You haven't filed anything yet.</p>
+  <% else %>
+    <div class="divide-y divide-gray-200 bg-white rounded-lg border border-gray-200">
+      <% @tickets.each do |ticket| %>
+        <%= link_to ticket_path(ticket), class: "p-4 flex items-center justify-between gap-4 hover:bg-gray-50 block" do %>
+          <div class="min-w-0">
+            <p class="font-medium text-gray-900 truncate"><%= ticket.title %></p>
+            <p class="text-sm text-gray-500"><%= ticket.service.name %> &rsaquo; <%= ticket.topic.name %> &middot; <%= time_ago_in_words(ticket.created_at) %> ago</p>
+          </div>
+          <div class="flex items-center gap-2 shrink-0">
+            <span class="text-xs px-2 py-0.5 rounded-full <%= priority_badge_classes(ticket.priority) %>"><%= ticket.priority.humanize %></span>
+            <span class="text-xs px-2 py-0.5 rounded-full <%= status_badge_classes(ticket.status) %>"><%= ticket.status.humanize %></span>
+          </div>
+        <% end %>
+      <% end %>
+    </div>
+  <% end %>
+<% end %>

@@ -1,0 +1,78 @@
+<% if ticket.errors.any? %>
+  <div class="mb-4 rounded-md bg-red-50 text-red-800 px-4 py-3 text-sm">
+    <ul class="list-disc list-inside">
+      <% ticket.errors.full_messages.each do |message| %>
+        <li><%= message %></li>
+      <% end %>
+    </ul>
+  </div>
+<% end %>
+
+<%= form_with model: ticket, url: tickets_path, class: "space-y-4" do |f| %>
+  <div>
+    <%= f.label :title, class: "block text-sm font-medium text-gray-700 mb-1" %>
+    <%= f.text_field :title, class: "w-full rounded-md border-gray-300", required: true, placeholder: "Short summary" %>
+  </div>
+
+  <div class="grid grid-cols-2 gap-4">
+    <div>
+      <%= f.label :service_id, "Service", class: "block text-sm font-medium text-gray-700 mb-1" %>
+      <%= f.select :service_id, services.map { |s| [ s.name, s.id ] }, { prompt: "Select a service" },
+            id: "ticket_service_id", class: "w-full rounded-md border-gray-300", required: true %>
+    </div>
+
+    <div>
+      <%= f.label :topic_id, "Topic", class: "block text-sm font-medium text-gray-700 mb-1" %>
+      <%= f.select :topic_id, [], { prompt: "Select a service first" },
+            id: "ticket_topic_id", class: "w-full rounded-md border-gray-300", required: true %>
+    </div>
+  </div>
+
+  <div>
+    <%= f.label :url, "URL (optional)", class: "block text-sm font-medium text-gray-700 mb-1" %>
+    <%= f.url_field :url, class: "w-full rounded-md border-gray-300", placeholder: "https://..." %>
+  </div>
+
+  <div>
+    <%= f.label :priority, class: "block text-sm font-medium text-gray-700 mb-1" %>
+    <%= f.select :priority, Ticket.priorities.keys.map { |p| [ p.humanize, p ] }, { selected: ticket.priority || "medium" },
+          class: "w-full rounded-md border-gray-300" %>
+  </div>
+
+  <div>
+    <%= f.label :message, "Details", class: "block text-sm font-medium text-gray-700 mb-1" %>
+    <p class="text-xs text-gray-400 mb-1">Markdown supported.</p>
+    <%= f.text_area :message, rows: 8, class: "w-full rounded-md border-gray-300 font-mono text-sm", required: true %>
+  </div>
+
+  <%= f.submit "Submit ticket", class: "bg-red-600 text-white px-4 py-2 rounded-md font-medium hover:bg-red-700 cursor-pointer" %>
+<% end %>
+
+<script>
+  (function() {
+    const topicsByService = <%= raw services.to_h { |s| [ s.id, s.topics.select(&:active?).map { |t| [ t.id, t.name ] } ] }.to_json %>;
+    const serviceSelect = document.getElementById("ticket_service_id");
+    const topicSelect = document.getElementById("ticket_topic_id");
+
+    function populateTopics(selectedTopicId) {
+      const topics = topicsByService[serviceSelect.value] || [];
+      topicSelect.innerHTML = "";
+
+      const placeholder = document.createElement("option");
+      placeholder.value = "";
+      placeholder.textContent = topics.length ? "Select a topic" : "Select a service first";
+      topicSelect.appendChild(placeholder);
+
+      topics.forEach(function(topic) {
+        const opt = document.createElement("option");
+        opt.value = topic[0];
+        opt.textContent = topic[1];
+        if (String(topic[0]) === String(selectedTopicId)) opt.selected = true;
+        topicSelect.appendChild(opt);
+      });
+    }
+
+    serviceSelect.addEventListener("change", function() { populateTopics(null); });
+    populateTopics(<%= raw ticket.topic_id.to_json %>);
+  })();
+</script>

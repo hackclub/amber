@@ -1,0 +1,7 @@
+<h1>Your ticket is now <%= @ticket.status.humanize.downcase %></h1>
+
+<p><strong><%= @ticket.title %></strong></p>
+
+<%= markdown(@ticket.message) %>
+
+<p><%= link_to "View ticket", ticket_url(@ticket) %></p>

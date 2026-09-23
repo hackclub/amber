@@ -1,0 +1,17 @@
+<h1 class="text-2xl font-bold mb-6">People</h1>
+
+<div class="divide-y divide-gray-200 bg-white rounded-lg border border-gray-200">
+  <% @users.each do |user| %>
+    <%= link_to admin_user_path(user), class: "p-4 flex items-center gap-4 hover:bg-gray-50" do %>
+      <%= avatar_tag(user, css_class: "size-9 rounded-full") %>
+      <div class="flex-1 min-w-0">
+        <p class="font-medium text-gray-900">
+          <%= user.name.presence || user.email %>
+          <% if user.admin? %><span class="text-xs px-2 py-0.5 rounded-full bg-gray-100 text-gray-700">admin</span><% end %>
+          <% if user.priority_boost? %><span class="text-xs px-2 py-0.5 rounded-full bg-purple-100 text-purple-700">VIP</span><% end %>
+        </p>
+        <p class="text-sm text-gray-500"><%= user.email %> &middot; <%= pluralize(user.tickets.size, "ticket") %></p>
+      </div>
+    <% end %>
+  <% end %>
+</div>

@@ -1,0 +1,39 @@
+<div class="flex items-center gap-4 mb-6">
+  <%= avatar_tag(@user, css_class: "size-14 rounded-full") %>
+  <div>
+    <h1 class="text-2xl font-bold"><%= @user.name.presence || @user.email %></h1>
+    <p class="text-sm text-gray-500">
+      <%= @user.email %>
+      <% if @user.slack_id.present? %> &middot; Slack <%= @user.slack_id %><% end %>
+      <% if @user.admin? %> &middot; admin (via ADMIN_EMAILS)<% end %>
+    </p>
+  </div>
+</div>
+
+<div class="bg-white border border-gray-200 rounded-lg p-4 mb-8 max-w-sm">
+  <%= form_with model: @user, url: admin_user_path(@user), method: :patch, class: "flex items-center justify-between" do |f| %>
+    <div>
+      <%= f.label :priority_boost, "Prioritize this person's tickets", class: "font-medium text-gray-900 text-sm" %>
+      <p class="text-xs text-gray-500">Bumps their tickets to the top of the admin dashboard.</p>
+    </div>
+    <%= f.check_box :priority_boost, class: "rounded border-gray-300 size-5", onchange: "this.form.requestSubmit()" %>
+  <% end %>
+</div>
+
+<h2 class="text-lg font-semibold mb-3">Tickets</h2>
+
+<% if @tickets.empty? %>
+  <p class="text-gray-500">No tickets yet.</p>
+<% else %>
+  <div class="divide-y divide-gray-200 bg-white rounded-lg border border-gray-200">
+    <% @tickets.each do |ticket| %>
+      <%= link_to ticket_path(ticket), class: "p-4 flex items-center justify-between gap-4 hover:bg-gray-50 block" do %>
+        <div class="min-w-0">
+          <p class="font-medium text-gray-900 truncate"><%= ticket.title %></p>
+          <p class="text-sm text-gray-500"><%= ticket.service.name %> &rsaquo; <%= ticket.topic.name %></p>
+        </div>
+        <span class="text-xs px-2 py-0.5 rounded-full <%= status_badge_classes(ticket.status) %> shrink-0"><%= ticket.status.humanize %></span>
+      <% end %>
+    <% end %>
+  </div>
+<% end %>

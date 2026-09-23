@@ -1,0 +1,19 @@
+<%# The :developer OmniAuth strategy used in sign_in test helpers uses email
+    as the uid, so these subs match the fixture emails to let tests "become"
+    an existing fixture user. Production subs come from Hack Club Auth's
+    opaque OIDC `sub` claim instead. %>
+amber:
+  sub: amber@hackclub.com
+  email: amber@hackclub.com
+  name: Amber
+  slack_id: U000AMBER
+  admin: true
+  priority_boost: true
+
+requester:
+  sub: someone@example.com
+  email: someone@example.com
+  name: Some Requester
+  slack_id: ""
+  admin: false
+  priority_boost: false

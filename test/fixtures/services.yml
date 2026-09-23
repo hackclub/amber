@@ -1,0 +1,7 @@
+website:
+  name: Website
+  active: true
+
+slack:
+  name: Slack
+  active: true

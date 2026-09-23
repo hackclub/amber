@@ -1,0 +1,15 @@
+<h1>New ticket: <%= @ticket.title %></h1>
+
+<p>
+  <strong><%= @ticket.user.name.presence || @ticket.user.email %></strong> filed a new
+  <%= @ticket.priority.humanize.downcase %> priority ticket under
+  <%= @ticket.service.name %> &rsaquo; <%= @ticket.topic.name %>.
+</p>
+
+<% if (safe_url = safe_http_url(@ticket.url)) %>
+  <p><a href="<%= safe_url %>"><%= safe_url %></a></p>
+<% end %>
+
+<%= markdown(@ticket.message) %>
+
+<p><%= link_to "View ticket", ticket_url(@ticket) %></p>

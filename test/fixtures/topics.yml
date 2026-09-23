@@ -1,0 +1,9 @@
+bug:
+  service: website
+  name: Bug
+  active: true
+
+access_request:
+  service: slack
+  name: Access Request
+  active: true

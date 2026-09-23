@@ -1,0 +1,7 @@
+Your ticket is now <%= @ticket.status.humanize.downcase %>
+
+<%= @ticket.title %>
+
+<%= @ticket.message %>
+
+View ticket: <%= ticket_url(@ticket) %>

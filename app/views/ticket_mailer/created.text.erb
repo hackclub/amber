@@ -1,0 +1,8 @@
+New ticket: <%= @ticket.title %>
+
+<%= @ticket.user.name.presence || @ticket.user.email %> filed a new <%= @ticket.priority.humanize.downcase %> priority ticket under <%= @ticket.service.name %> / <%= @ticket.topic.name %>.
+
+<%= "#{@ticket.url}\n" if @ticket.url.present? %>
+<%= @ticket.message %>
+
+View ticket: <%= ticket_url(@ticket) %>
