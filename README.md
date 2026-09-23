@@ -67,13 +67,13 @@ Tokens are stored as SHA-256 digests and displayed once at generation.
 
 ## Slack
 
-`slack-app-manifest.yml` is the source of truth for the Slack app
-(`A0C3N45SXS9`). Update it with:
+`slack-app-manifest.yml` is the source of truth for the **Ambot** Slack app
+(`A0BQECK593K`). Update it with:
 
 ```
 ruby -ryaml -rjson -rnet/http -ruri -e 'manifest = YAML.load_file("slack-app-manifest.yml"); \
   puts Net::HTTP.post_form(URI("https://slack.com/api/apps.manifest.update"), \
-  "token" => ENV["SLACK_CONFIG_TOKEN"], "app_id" => "A0C3N45SXS9", "manifest" => JSON.generate(manifest)).body'
+  "token" => ENV["SLACK_CONFIG_TOKEN"], "app_id" => "A0BQECK593K", "manifest" => JSON.generate(manifest)).body'
 ```
 
 with a config token from https://api.slack.com/authentication/config-tokens.

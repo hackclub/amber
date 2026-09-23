@@ -1,29 +1,33 @@
+# Source of truth for the Ambot Slack app (A0BQECK593K).
+# Push changes with the snippet in README.md — note that changing the events
+# request URL makes Slack re-verify it, so the app must be deployed and
+# SLACK_SIGNING_SECRET set to Ambot's secret before that will be accepted.
 _metadata:
   major_version: 1
   minor_version: 1
 
 display_information:
-  name: Tickets
-  description: File and triage tickets for amber.hackclub.com without leaving Slack
-  background_color: "#cc0000"
+  name: Ambot
+  description: amber but bot
+  background_color: "#ba56ba"
 
 features:
   bot_user:
-    display_name: Tickets
+    display_name: Ambot
     always_online: true
   app_home:
     home_tab_enabled: true
     messages_tab_enabled: true
     messages_tab_read_only_enabled: true
   shortcuts:
-    - name: Create ticket
+    - name: File a ticket
       type: message
-      callback_id: create_ticket_from_message
-      description: File this message as a ticket
-    - name: Create ticket
+      callback_id: file_msg_ticket
+      description: Need Amber help? File a ticket
+    - name: File a ticket
       type: global
-      callback_id: create_ticket
-      description: File a new ticket
+      callback_id: file_ticket
+      description: Need Amber help? File a ticket
 
 oauth_config:
   scopes:
@@ -31,9 +35,14 @@ oauth_config:
       # Required by Slack for shortcuts, even though this app has no slash command
       - commands
       - chat:write
+      - chat:write.public
+      # Opens a DM with someone the bot hasn't messaged before
       - im:write
       - users:read
       - users:read.email
+      - users.profile:read
+      - channels:read
+      - channels:history
 
 settings:
   interactivity:
@@ -44,5 +53,7 @@ settings:
     bot_events:
       - app_home_opened
   org_deploy_enabled: false
+  # Off deliberately: Socket Mode and HTTP request URLs are mutually exclusive,
+  # and the ticket app receives interactions over HTTP.
   socket_mode_enabled: false
   token_rotation_enabled: false
