@@ -13,6 +13,14 @@ Rails.application.routes.draw do
     resources :users, only: [ :index, :show, :update ]
   end
 
+  post "/mcp", to: "mcp#create", as: :mcp
+  match "/mcp", to: "mcp#unsupported", via: [ :get, :delete ]
+
+  resource :settings, only: [ :show ] do
+    post :api_token
+    delete :api_token, action: :revoke_api_token
+  end
+
   namespace :slack do
     post "interactions", to: "interactions#create"
     post "events", to: "events#create"

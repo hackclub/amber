@@ -7,6 +7,34 @@ class User < ApplicationRecord
   scope :admins, -> { where(admin: true) }
   scope :on_slack, -> { where.not(slack_id: [ nil, "" ]) }
 
+  TOKEN_PREFIX = "tkt_".freeze
+
+  # Personal access token for the MCP endpoint. Only the digest is stored, so
+  # the raw token is shown once at generation time and can't be recovered.
+  def regenerate_api_token!
+    raw = "#{TOKEN_PREFIX}#{SecureRandom.urlsafe_base64(32)}"
+    update!(api_token_digest: self.class.digest_api_token(raw))
+    raw
+  end
+
+  def revoke_api_token!
+    update!(api_token_digest: nil)
+  end
+
+  def api_token?
+    api_token_digest.present?
+  end
+
+  def self.authenticate_api_token(raw)
+    return if raw.blank?
+
+    find_by(api_token_digest: digest_api_token(raw))
+  end
+
+  def self.digest_api_token(raw)
+    OpenSSL::Digest::SHA256.hexdigest(raw)
+  end
+
   def self.admin_emails
     ENV.fetch("ADMIN_EMAILS", "amber@hackclub.com").split(",").map { |e| e.strip.downcase }
   end

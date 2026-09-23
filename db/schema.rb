@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_09_23_042311) do
+ActiveRecord::Schema[8.1].define(version: 2026_09_23_044100) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -53,6 +53,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_09_23_042311) do
 
   create_table "users", force: :cascade do |t|
     t.boolean "admin", default: false, null: false
+    t.string "api_token_digest"
     t.datetime "created_at", null: false
     t.string "email", null: false
     t.string "name"
@@ -60,6 +61,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_09_23_042311) do
     t.string "slack_id"
     t.string "sub", null: false
     t.datetime "updated_at", null: false
+    t.index ["api_token_digest"], name: "index_users_on_api_token_digest", unique: true
     t.index ["sub"], name: "index_users_on_sub", unique: true
   end
 
