@@ -125,6 +125,58 @@ class McpServer
           },
           "required" => [ "id", "status" ]
         }
+      },
+      {
+        "name" => "create_service",
+        "description" => "Add a service that tickets can be filed under, optionally with its first topics.",
+        "inputSchema" => {
+          "type" => "object",
+          "properties" => {
+            "name" => { "type" => "string" },
+            "topics" => { "type" => "array", "items" => { "type" => "string" }, "description" => "Optional topic names to create under it" }
+          },
+          "required" => [ "name" ]
+        }
+      },
+      {
+        "name" => "update_service",
+        "description" => "Rename a service, or retire it by setting active to false — retiring hides it from the " \
+                         "new-ticket form while keeping existing tickets intact. Deleting is web-only, on purpose.",
+        "inputSchema" => {
+          "type" => "object",
+          "properties" => {
+            "name" => { "type" => "string", "description" => "The service to change" },
+            "new_name" => { "type" => "string" },
+            "active" => { "type" => "boolean" }
+          },
+          "required" => [ "name" ]
+        }
+      },
+      {
+        "name" => "create_topic",
+        "description" => "Add a topic under an existing service.",
+        "inputSchema" => {
+          "type" => "object",
+          "properties" => {
+            "service" => { "type" => "string" },
+            "name" => { "type" => "string" }
+          },
+          "required" => [ "service", "name" ]
+        }
+      },
+      {
+        "name" => "update_topic",
+        "description" => "Rename a topic, or retire it by setting active to false. Deleting is web-only, on purpose.",
+        "inputSchema" => {
+          "type" => "object",
+          "properties" => {
+            "service" => { "type" => "string" },
+            "name" => { "type" => "string", "description" => "The topic to change" },
+            "new_name" => { "type" => "string" },
+            "active" => { "type" => "boolean" }
+          },
+          "required" => [ "service", "name" ]
+        }
       }
     ]
   end
@@ -142,6 +194,10 @@ class McpServer
     when "get_ticket" then get_ticket(args)
     when "my_queue" then my_queue(args)
     when "update_ticket_status" then update_ticket_status(args)
+    when "create_service" then create_service(args)
+    when "update_service" then update_service(args)
+    when "create_topic" then create_topic(args)
+    when "update_topic" then update_topic(args)
     end
 
     text.is_a?(Array) ? tool_error(text.first) : tool_result(text)
@@ -149,13 +205,17 @@ class McpServer
 
   # --- tools -------------------------------------------------------------
 
+  # Admins also see retired entries, since they're the ones who manage them.
   def list_services
-    services = Service.active.includes(:topics).order(:name)
+    services = (user.admin? ? Service.all : Service.active).includes(:topics).order(:name)
     return "No services are configured yet." if services.empty?
 
     services.map do |service|
-      topics = service.topics.select(&:active?).map(&:name)
-      "#{service.name}: #{topics.any? ? topics.join(', ') : '(no topics yet)'}"
+      topics = service.topics.select { |topic| topic.active? || user.admin? }
+                      .map { |topic| topic.active? ? topic.name : "#{topic.name} (retired)" }
+
+      label = service.active? ? service.name : "#{service.name} (retired)"
+      "#{label}: #{topics.any? ? topics.join(', ') : '(no topics yet)'}"
     end.join("\n")
   end
 
@@ -216,6 +276,58 @@ class McpServer
 
     notified = ticket.user.slack_id.present? ? " #{ticket.user.name.presence || 'They'} will get an email and a Slack DM." : " They'll get an email."
     "Ticket ##{ticket.id} is now #{ticket.status.humanize.downcase}.#{notified}"
+  end
+
+  def create_service(args)
+    service = Service.new(name: args["name"].to_s.strip)
+    return [ "Could not create it: #{service.errors.full_messages.to_sentence}" ] unless service.save
+
+    topics = Array(args["topics"]).map(&:to_s).map(&:strip).reject(&:empty?)
+    created = topics.filter_map { |name| service.topics.create(name: name).persisted? ? name : nil }
+
+    "Created service #{service.name}." +
+      (created.any? ? " Topics: #{created.join(', ')}." : " It has no topics yet — add some before anyone can file under it.")
+  end
+
+  def update_service(args)
+    service = find_service(args["name"])
+    return [ "No service called #{args['name'].inspect}. Available:\n#{list_services}" ] if service.nil?
+
+    service.name = args["new_name"].to_s.strip if args["new_name"].present?
+    service.active = args["active"] unless args["active"].nil?
+
+    return [ "Could not update it: #{service.errors.full_messages.to_sentence}" ] unless service.save
+
+    "#{service.name} is now #{service.active? ? 'active' : 'retired (hidden from the new-ticket form)'}."
+  end
+
+  def create_topic(args)
+    service = find_service(args["service"])
+    return [ "No service called #{args['service'].inspect}. Available:\n#{list_services}" ] if service.nil?
+
+    topic = service.topics.new(name: args["name"].to_s.strip)
+    return [ "Could not create it: #{topic.errors.full_messages.to_sentence}" ] unless topic.save
+
+    "Added #{topic.name} under #{service.name}."
+  end
+
+  def update_topic(args)
+    service = find_service(args["service"])
+    return [ "No service called #{args['service'].inspect}. Available:\n#{list_services}" ] if service.nil?
+
+    topic = service.topics.find_by("LOWER(name) = ?", args["name"].to_s.downcase.strip)
+    return [ "#{service.name} has no topic called #{args['name'].inspect}." ] if topic.nil?
+
+    topic.name = args["new_name"].to_s.strip if args["new_name"].present?
+    topic.active = args["active"] unless args["active"].nil?
+
+    return [ "Could not update it: #{topic.errors.full_messages.to_sentence}" ] unless topic.save
+
+    "#{service.name} > #{topic.name} is now #{topic.active? ? 'active' : 'retired'}."
+  end
+
+  def find_service(name)
+    Service.find_by("LOWER(name) = ?", name.to_s.downcase.strip)
   end
 
   # --- formatting --------------------------------------------------------

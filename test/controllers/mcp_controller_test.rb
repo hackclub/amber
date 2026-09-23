@@ -129,6 +129,54 @@ class McpControllerTest < ActionDispatch::IntegrationTest
     refute ticket.reload.done?
   end
 
+  test "an admin can create a service with topics" do
+    assert_difference -> { Service.count }, 1 do
+      call_tool("create_service", { "name" => "Hardware", "topics" => [ "Laptop", "Printer" ] }, token: @admin_token)
+    end
+
+    service = Service.find_by(name: "Hardware")
+    assert_equal [ "Laptop", "Printer" ], service.topics.order(:name).pluck(:name)
+  end
+
+  test "an admin can retire a service without touching its tickets" do
+    call_tool("update_service", { "name" => "Website", "active" => false }, token: @admin_token)
+
+    refute services(:website).reload.active?
+    assert tickets(:website_bug).reload.persisted?
+  end
+
+  test "an admin can rename a topic" do
+    call_tool("update_topic", { "service" => "Website", "name" => "Bug", "new_name" => "Defect" }, token: @admin_token)
+
+    assert_equal "Defect", topics(:bug).reload.name
+  end
+
+  test "taxonomy tools are hidden from non-admins" do
+    mcp_call("tools/list", token: @requester_token)
+    names = response.parsed_body.dig("result", "tools").map { |tool| tool["name"] }
+
+    refute_includes names, "create_service"
+    refute_includes names, "update_topic"
+  end
+
+  test "a non-admin cannot create a service" do
+    assert_no_difference -> { Service.count } do
+      call_tool("create_service", { "name" => "Sneaky" }, token: @requester_token)
+    end
+
+    assert response.parsed_body.dig("result", "isError")
+  end
+
+  test "retired services stay visible to admins and hidden from requesters" do
+    services(:slack).update!(active: false)
+
+    call_tool("list_services", {}, token: @admin_token)
+    assert_match "Slack (retired)", text_content
+
+    call_tool("list_services", {}, token: @requester_token)
+    assert_no_match(/Slack/, text_content)
+  end
+
   test "GET is not supported" do
     get mcp_path, headers: { "Authorization" => "Bearer #{@requester_token}" }
 

@@ -43,6 +43,43 @@ Services and topics (each topic belongs to one service) are managed from
 changes needed to add or retire a category. `db/seeds.rb` creates a starter
 set.
 
+## MCP
+
+The app is also an MCP server, so tickets can be filed and triaged from Claude
+(or any MCP client). Generate a token at `/settings`, then:
+
+```
+claude mcp add --transport http tickets https://amber.hackclub.com/mcp \
+  --header "Authorization: Bearer YOUR_TOKEN"
+```
+
+Tools are scoped to whoever the token belongs to. Everyone gets
+`list_services`, `create_ticket`, `list_my_tickets` and `get_ticket`; admins
+also get `my_queue`, `update_ticket_status`, and taxonomy management
+(`create_service`, `update_service`, `create_topic`, `update_topic`).
+Non-admins don't just get refused on the admin tools — the tools aren't listed
+for them at all.
+
+Services and topics can be retired (`active: false`) but not deleted over MCP;
+deletion stays on the web, where it's a deliberate click behind a confirm.
+
+Tokens are stored as SHA-256 digests and displayed once at generation.
+
+## Slack
+
+`slack-app-manifest.yml` is the source of truth for the Slack app
+(`A0C3N45SXS9`). Update it with:
+
+```
+ruby -ryaml -rjson -rnet/http -ruri -e 'manifest = YAML.load_file("slack-app-manifest.yml"); \
+  puts Net::HTTP.post_form(URI("https://slack.com/api/apps.manifest.update"), \
+  "token" => ENV["SLACK_CONFIG_TOKEN"], "app_id" => "A0C3N45SXS9", "manifest" => JSON.generate(manifest)).body'
+```
+
+with a config token from https://api.slack.com/authentication/config-tokens.
+Changing the Events request URL makes Slack re-verify it, so the app has to be
+deployed and `SLACK_SIGNING_SECRET` set before that update will be accepted.
+
 ## Email
 
 Development uses `letter_opener`. Production sends via SMTP — set
