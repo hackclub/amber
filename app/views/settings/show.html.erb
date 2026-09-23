@@ -20,10 +20,10 @@
     <% end %>
 
     <div class="flex items-center gap-3">
-      <%= button_to (current_user.api_token? ? "Generate a new token" : "Generate token"), settings_api_token_path,
+      <%= button_to (current_user.api_token? ? "Generate a new token" : "Generate token"), api_token_settings_path,
             method: :post, class: "bg-red-600 text-white px-3 py-1.5 rounded-md text-sm font-medium hover:bg-red-700 cursor-pointer" %>
       <% if current_user.api_token? %>
-        <%= button_to "Revoke", settings_api_token_path, method: :delete,
+        <%= button_to "Revoke", api_token_settings_path, method: :delete,
               form: { data: { turbo_confirm: "Revoke your API token? Anything using it will stop working." } },
               class: "text-sm text-gray-500 hover:text-gray-900 underline bg-transparent border-0 p-0 cursor-pointer" %>
       <% end %>
