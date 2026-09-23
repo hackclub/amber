@@ -87,18 +87,16 @@ test:
 production:
   primary: &primary_production
     <<: *default
-    database: amber_hackclub_com_production
-    username: amber_hackclub_com
-    password: <%= ENV["AMBER_HACKCLUB_COM_DATABASE_PASSWORD"] %>
+    url: <%= ENV["DATABASE_URL"] %>
+  # Solid Cache/Queue/Cable normally get their own physical database each,
+  # but for a small internal app it's simpler to share the one Postgres
+  # instance above — their tables don't collide with the app's own.
   cache:
     <<: *primary_production
-    database: amber_hackclub_com_production_cache
     migrations_paths: db/cache_migrate
   queue:
     <<: *primary_production
-    database: amber_hackclub_com_production_queue
     migrations_paths: db/queue_migrate
   cable:
     <<: *primary_production
-    database: amber_hackclub_com_production_cable
     migrations_paths: db/cable_migrate
