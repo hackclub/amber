@@ -51,6 +51,14 @@ module ApplicationHelper
     nil
   end
 
+  # Shared box styling for text/select/textarea inputs. Tailwind's `border-*`
+  # color utilities need a `border` width utility alongside them or nothing
+  # renders — easy to drop, so it's centralized here instead of repeated.
+  def input_classes(extra = nil)
+    "block w-full rounded-md border border-gray-300 bg-white px-3 py-2 shadow-sm " \
+    "focus:border-red-500 focus:ring-1 focus:ring-red-500 focus:outline-none #{extra}".strip
+  end
+
   def priority_badge_classes(priority)
     PRIORITY_CLASSES.fetch(priority.to_s, "bg-gray-100 text-gray-700")
   end

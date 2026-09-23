@@ -27,7 +27,7 @@
   <% if admin? %>
     <%= form_with model: @ticket, url: ticket_path(@ticket), method: :patch, class: "flex items-center gap-2" do |f| %>
       <%= f.label :status, "Update status", class: "text-sm font-medium text-gray-700" %>
-      <%= f.select :status, Ticket.statuses.keys.map { |s| [ s.humanize, s ] }, {}, class: "rounded-md border-gray-300" %>
+      <%= f.select :status, Ticket.statuses.keys.map { |s| [ s.humanize, s ] }, {}, class: input_classes %>
       <%= f.submit "Update", class: "bg-red-600 text-white px-3 py-1.5 rounded-md text-sm font-medium hover:bg-red-700 cursor-pointer" %>
     <% end %>
   <% end %>

@@ -11,7 +11,7 @@
 <%= form_with model: service, url: url, class: "space-y-4 max-w-sm" do |f| %>
   <div>
     <%= f.label :name, class: "block text-sm font-medium text-gray-700 mb-1" %>
-    <%= f.text_field :name, class: "w-full rounded-md border-gray-300", required: true %>
+    <%= f.text_field :name, class: input_classes, required: true %>
   </div>
 
   <div class="flex items-center gap-2">
