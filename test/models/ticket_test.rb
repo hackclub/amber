@@ -48,11 +48,11 @@ class TicketTest < ActiveSupport::TestCase
     assert_equal Ticket.columns_hash["priority"].default.to_i, Ticket.priorities[ticket.priority]
   end
 
-  test "not doing is a closed state, so it drops off the queue" do
+  test "wont do is a closed state, so it drops off the queue" do
     ticket = Ticket.create!(valid_attributes)
     assert_includes Ticket.needs_attention, ticket
 
-    ticket.update!(status: :not_doing)
+    ticket.update!(status: :wont_do)
 
     refute_includes Ticket.needs_attention, ticket
     assert_includes Ticket.needs_attention, Ticket.create!(valid_attributes)
@@ -67,16 +67,29 @@ class TicketTest < ActiveSupport::TestCase
       refute_match(/_/, ticket.status_sentence, "#{status} still reads like an enum key")
     end
 
-    ticket.status = :not_doing
-    assert_equal "closed as not planned", ticket.status_sentence
+    ticket.status = :wont_do
+    assert_equal "closed — won't do", ticket.status_sentence
+    assert_equal "Won't do", ticket.status_label
   end
 
-  test "closing as not doing still notifies the requester" do
+  test "every status has a label that isn't just the enum key" do
+    Ticket.statuses.each_key do |status|
+      label = Ticket.status_label(status)
+      assert label.present?
+      refute_match(/_/, label, "#{status} has no proper label")
+    end
+
+    # humanize would give "Wont do" — the apostrophe is why labels are mapped.
+    assert_equal "Won't do", Ticket.status_label(:wont_do)
+    assert_includes Ticket.status_options, [ "Won't do", "wont_do" ]
+  end
+
+  test "closing as wont do still notifies the requester" do
     ticket = Ticket.create!(valid_attributes)
 
     assert_enqueued_emails 1 do
       assert_enqueued_with job: SlackNotificationJob, args: [ ticket.id, "status_changed" ] do
-        ticket.update!(status: :not_doing)
+        ticket.update!(status: :wont_do)
       end
     end
   end

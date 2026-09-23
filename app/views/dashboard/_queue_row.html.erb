@@ -17,6 +17,6 @@
   </div>
 
   <%= form_with model: ticket, url: ticket_path(ticket), method: :patch, class: "shrink-0" do |f| %>
-    <%= f.select :status, Ticket.statuses.keys.map { |s| [s.humanize, s] }, {}, class: "text-sm border border-gray-300 rounded-md px-2 py-1 bg-white shadow-sm focus:border-red-500 focus:ring-1 focus:ring-red-500 focus:outline-none", onchange: "this.form.requestSubmit()" %>
+    <%= f.select :status, Ticket.status_options, {}, class: "text-sm border border-gray-300 rounded-md px-2 py-1 bg-white shadow-sm focus:border-red-500 focus:ring-1 focus:ring-red-500 focus:outline-none", onchange: "this.form.requestSubmit()" %>
   <% end %>
 </div>

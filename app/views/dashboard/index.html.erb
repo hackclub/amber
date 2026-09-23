@@ -35,7 +35,7 @@
           </div>
           <div class="flex items-center gap-2 shrink-0">
             <span class="text-xs px-2 py-0.5 rounded-full <%= priority_badge_classes(ticket.priority) %>"><%= ticket.priority.humanize %></span>
-            <span class="text-xs px-2 py-0.5 rounded-full <%= status_badge_classes(ticket.status) %>"><%= ticket.status.humanize %></span>
+            <span class="text-xs px-2 py-0.5 rounded-full <%= status_badge_classes(ticket.status) %>"><%= ticket.status_label %></span>
           </div>
         <% end %>
       <% end %>

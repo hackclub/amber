@@ -142,6 +142,36 @@ class McpServer
         }
       },
       {
+        "name" => "list_people",
+        "description" => "Everyone who has used the tracker, with their ticket counts and whether they're a VIP.",
+        "inputSchema" => { "type" => "object", "properties" => {} }
+      },
+      {
+        "name" => "set_vip",
+        "description" => "Mark someone as a VIP, or unmark them. VIPs' tickets sort to the top of my_queue and " \
+                         "the dashboard. Identify them by name or email as shown in list_people.",
+        "inputSchema" => {
+          "type" => "object",
+          "properties" => {
+            "person" => { "type" => "string", "description" => "Name or email from list_people" },
+            "vip" => { "type" => "boolean", "description" => "True to mark, false to unmark" }
+          },
+          "required" => [ "person", "vip" ]
+        }
+      },
+      {
+        "name" => "set_priority",
+        "description" => "Change a ticket's priority. Unlike a status change, this notifies nobody.",
+        "inputSchema" => {
+          "type" => "object",
+          "properties" => {
+            "id" => { "type" => "integer" },
+            "priority" => { "type" => "string", "enum" => Ticket.priorities.keys }
+          },
+          "required" => [ "id", "priority" ]
+        }
+      },
+      {
         "name" => "create_service",
         "description" => "Add a service that tickets can be filed under, optionally with its first topics.",
         "inputSchema" => {
@@ -210,6 +240,9 @@ class McpServer
     when "my_queue" then my_queue(args)
     when "add_internal_note" then add_internal_note(args)
     when "update_ticket_status" then update_ticket_status(args)
+    when "list_people" then list_people
+    when "set_vip" then set_vip(args)
+    when "set_priority" then set_priority(args)
     when "create_service" then create_service(args)
     when "update_service" then update_service(args)
     when "create_topic" then create_topic(args)
@@ -308,6 +341,41 @@ class McpServer
     "Ticket ##{ticket.id} is now #{ticket.status_sentence}.#{notified}"
   end
 
+  def list_people
+    people = User.left_joins(:tickets).group(:id).order(:name).pluck(:name, :email, :priority_boost, :admin, Arel.sql("COUNT(tickets.id)"))
+    return "Nobody has used the tracker yet." if people.empty?
+
+    people.map do |name, email, vip, admin, count|
+      tags = [ ("VIP" if vip), ("admin" if admin) ].compact
+      "- #{name.presence || email} (#{email})#{" [#{tags.join(', ')}]" if tags.any?} — #{count} #{'ticket'.pluralize(count)}"
+    end.join("\n")
+  end
+
+  def set_vip(args)
+    needle = args["person"].to_s.downcase.strip
+    matches = User.where("LOWER(email) = :needle OR LOWER(name) = :needle", needle: needle)
+    matches = User.where("LOWER(name) LIKE :like OR LOWER(email) LIKE :like", like: "%#{needle}%") if matches.empty?
+
+    return [ "No one matches #{args['person'].inspect}. Try list_people." ] if matches.empty?
+    return [ "#{args['person'].inspect} matches #{matches.count} people: #{matches.map(&:email).join(', ')}. Use an email." ] if matches.count > 1
+
+    person = matches.first
+    person.update!(priority_boost: args["vip"])
+
+    "#{person.name.presence || person.email} is #{person.priority_boost? ? 'now a VIP — their tickets sort to the top' : 'no longer a VIP'}."
+  end
+
+  def set_priority(args)
+    ticket = Ticket.find(args["id"])
+
+    unless Ticket.priorities.key?(args["priority"])
+      return [ "#{args['priority'].inspect} isn't a priority. Valid: #{Ticket.priorities.keys.join(', ')}." ]
+    end
+
+    ticket.update!(priority: args["priority"])
+    "Ticket ##{ticket.id} is now #{ticket.priority} priority."
+  end
+
   def create_service(args)
     service = Service.new(name: args["name"].to_s.strip)
     return [ "Could not create it: #{service.errors.full_messages.to_sentence}" ] unless service.save
@@ -369,7 +437,7 @@ class McpServer
       (ticket.user.name.presence || ticket.user.email if requester),
       "#{ticket.service.name} > #{ticket.topic.name}",
       "#{ticket.priority} priority",
-      ticket.status.humanize.downcase,
+      ticket.status_label.downcase,
       "#{time_ago(ticket.created_at)} old"
     ].compact
 
@@ -379,7 +447,7 @@ class McpServer
   def describe(ticket, full: false)
     lines = [
       "##{ticket.id}: #{ticket.title}",
-      "Status: #{ticket.status.humanize.downcase} · Priority: #{ticket.priority} · #{ticket.service.name} > #{ticket.topic.name}",
+      "Status: #{ticket.status_label.downcase} · Priority: #{ticket.priority} · #{ticket.service.name} > #{ticket.topic.name}",
       "Filed by #{ticket.user.name.presence || ticket.user.email} #{time_ago(ticket.created_at)} ago",
       ("Link: #{ticket.url}" if ticket.url.present?),
       "Web: #{SlackNotifier.ticket_url(ticket)}"

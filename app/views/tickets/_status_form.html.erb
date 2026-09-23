@@ -2,7 +2,7 @@
       class: "bg-white border border-gray-200 rounded-lg p-4 space-y-3" do |f| %>
   <div class="flex items-center gap-2">
     <%= f.label :status, "Update status", class: "text-sm font-medium text-gray-700" %>
-    <%= f.select :status, Ticket.statuses.keys.map { |s| [ s.humanize, s ] }, {}, class: input_classes %>
+    <%= f.select :status, Ticket.status_options, {}, class: input_classes %>
   </div>
 
   <div>

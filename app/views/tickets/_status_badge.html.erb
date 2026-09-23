@@ -1,1 +1,1 @@
-<span id="<%= dom_id(ticket, :status) %>" class="text-xs px-2 py-0.5 rounded-full <%= status_badge_classes(ticket.status) %>"><%= ticket.status.humanize %></span>
+<span id="<%= dom_id(ticket, :status) %>" class="text-xs px-2 py-0.5 rounded-full <%= status_badge_classes(ticket.status) %>"><%= ticket.status_label %></span>

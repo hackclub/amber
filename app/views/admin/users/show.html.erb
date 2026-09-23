@@ -34,7 +34,7 @@
           <p class="font-medium text-gray-900 truncate"><%= ticket.title %></p>
           <p class="text-sm text-gray-500"><%= ticket.service.name %> &rsaquo; <%= ticket.topic.name %></p>
         </div>
-        <span class="text-xs px-2 py-0.5 rounded-full <%= status_badge_classes(ticket.status) %> shrink-0"><%= ticket.status.humanize %></span>
+        <span class="text-xs px-2 py-0.5 rounded-full <%= status_badge_classes(ticket.status) %> shrink-0"><%= ticket.status_label %></span>
       <% end %>
     <% end %>
   </div>

@@ -162,6 +162,62 @@ class Slack::InteractionsControllerTest < ActionDispatch::IntegrationTest
     assert_equal "Fixed in this morning's deploy.", ticket.status_note
   end
 
+  test "the update modal offers every status, including wont do" do
+    ticket = tickets(:website_bug)
+    client = FakeSlackClient.new
+
+    with_slack_client(client) do
+      slack_post slack_interactions_path, interaction_body(
+        type: "block_actions", trigger_id: "trigger-5", user: { id: users(:amber).slack_id },
+        actions: [ { action_id: "set_status", selected_option: { value: "#{ticket.id}:wont_do" } } ]
+      )
+    end
+
+    view = client.calls[:views_open].sole[:view]
+    assert_match "Won't do", view.to_json
+    assert_equal "#{ticket.id}:wont_do", view["private_metadata"]
+  end
+
+  test "the update modal can add an internal note alongside the status" do
+    ticket = tickets(:website_bug)
+
+    with_slack_client do
+      slack_post slack_interactions_path, interaction_body(
+        type: "view_submission",
+        user: { id: users(:amber).slack_id },
+        view: {
+          callback_id: "update_ticket",
+          private_metadata: "#{ticket.id}:wont_do",
+          state: { values: {
+            note: { note: { value: "Not going to get to this, sorry." } },
+            internal_note: { internal_note: { value: "Duplicate of the other request." } }
+          } }
+        }
+      )
+    end
+
+    ticket.reload
+    assert ticket.wont_do?
+    assert_equal "Not going to get to this, sorry.", ticket.status_note
+    assert_equal "Duplicate of the other request.", ticket.notes.sole.body
+    assert_equal users(:amber), ticket.notes.sole.author
+  end
+
+  test "an unknown status from Slack changes nothing" do
+    ticket = tickets(:website_bug)
+
+    with_slack_client do
+      slack_post slack_interactions_path, interaction_body(
+        type: "view_submission",
+        user: { id: users(:amber).slack_id },
+        view: { callback_id: "update_ticket", private_metadata: "#{ticket.id}:nonsense", state: { values: {} } }
+      )
+    end
+
+    assert_response :success
+    assert_equal "open", ticket.reload.status
+  end
+
   test "a non-admin submitting the update modal changes nothing" do
     ticket = tickets(:website_bug)
 

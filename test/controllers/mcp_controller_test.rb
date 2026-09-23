@@ -128,7 +128,7 @@ class McpControllerTest < ActionDispatch::IntegrationTest
 
     assert_response :success
     assert response.parsed_body.dig("result", "isError")
-    assert_match "not_doing", text_content
+    assert_match "wont_do", text_content
     assert_equal "open", ticket.reload.status
   end
 
@@ -236,6 +236,78 @@ class McpControllerTest < ActionDispatch::IntegrationTest
     end
 
     assert response.parsed_body.dig("result", "isError")
+  end
+
+  test "list_people shows ticket counts and VIP status" do
+    call_tool("list_people", {}, token: @admin_token)
+
+    assert_match users(:requester).email, text_content
+    assert_match "VIP", text_content
+  end
+
+  test "set_vip marks and unmarks someone" do
+    call_tool("set_vip", { "person" => users(:requester).email, "vip" => true }, token: @admin_token)
+    assert users(:requester).reload.priority_boost?
+
+    call_tool("set_vip", { "person" => users(:requester).email, "vip" => false }, token: @admin_token)
+    refute users(:requester).reload.priority_boost?
+  end
+
+  test "set_vip asks for an email when a partial name is ambiguous" do
+    User.create!(sub: "dupe-1", email: "sam.one@example.com", name: "Sam One")
+    User.create!(sub: "dupe-2", email: "sam.two@example.com", name: "Sam Two")
+
+    call_tool("set_vip", { "person" => "Sam", "vip" => true }, token: @admin_token)
+
+    assert response.parsed_body.dig("result", "isError")
+    assert_match "Use an email", text_content
+    refute User.find_by(email: "sam.one@example.com").priority_boost?
+  end
+
+  test "set_vip prefers an exact name over a partial one" do
+    exact = User.create!(sub: "exact", email: "sam@example.com", name: "Sam")
+    User.create!(sub: "partial", email: "sammy@example.com", name: "Sammy Jones")
+
+    call_tool("set_vip", { "person" => "Sam", "vip" => true }, token: @admin_token)
+
+    refute response.parsed_body.dig("result", "isError")
+    assert exact.reload.priority_boost?
+  end
+
+  test "set_priority changes priority without notifying" do
+    ticket = tickets(:website_bug)
+
+    assert_no_enqueued_emails do
+      call_tool("set_priority", { "id" => ticket.id, "priority" => "urgent" }, token: @admin_token)
+    end
+
+    assert_equal "urgent", ticket.reload.priority
+  end
+
+  test "an invalid priority is reported rather than crashing" do
+    ticket = tickets(:website_bug)
+
+    call_tool("set_priority", { "id" => ticket.id, "priority" => "burning" }, token: @admin_token)
+
+    assert response.parsed_body.dig("result", "isError")
+    assert_match "urgent", text_content
+  end
+
+  test "people tools are admin-only" do
+    mcp_call("tools/list", token: @requester_token)
+    names = response.parsed_body.dig("result", "tools").map { |tool| tool["name"] }
+
+    refute_includes names, "list_people"
+    refute_includes names, "set_vip"
+    refute_includes names, "set_priority"
+  end
+
+  test "every status is offered by the status tool" do
+    mcp_call("tools/list", token: @admin_token)
+    tool = response.parsed_body.dig("result", "tools").find { |t| t["name"] == "update_ticket_status" }
+
+    assert_equal Ticket.statuses.keys, tool.dig("inputSchema", "properties", "status", "enum")
+    assert_includes tool.dig("inputSchema", "properties", "status", "enum"), "wont_do"
   end
 
   test "GET is not supported" do

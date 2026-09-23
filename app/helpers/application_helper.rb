@@ -49,7 +49,7 @@ module ApplicationHelper
     "open" => "bg-yellow-100 text-yellow-800",
     "in_progress" => "bg-blue-100 text-blue-800",
     "done" => "bg-green-100 text-green-800",
-    "not_doing" => "bg-gray-200 text-gray-600"
+    "wont_do" => "bg-gray-200 text-gray-600"
   }.freeze
 
   # Ticket#url is validated to be http(s) already, but re-checking at render

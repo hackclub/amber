@@ -4,10 +4,25 @@ close "Cancel"
 callback "update_ticket"
 private_metadata "#{ticket.id}:#{status}"
 
-section "*#{ticket.title}*\nSetting status to *#{status.humanize}*", markdown: true
+section "*#{ticket.title}*\nSetting status to *#{Ticket.status_label(status)}*", markdown: true
 
-input "Note (optional)",
+if ticket.notes.any?
+  context [ mrkdwn_text("*Internal notes so far*") ]
+  ticket.notes.oldest_first.last(5).each do |note|
+    context [ mrkdwn_text("#{note.author.name.presence || note.author.email}: #{note.body.truncate(150)}") ]
+  end
+end
+
+divider
+
+input "Note for #{ticket.user.name.presence || 'them'} (optional)",
       plain_text_input("note", multiline: true, placeholder: "Shipped in this morning's deploy."),
       block_id: "note",
       optional: true,
-      hint: "#{ticket.user.name.presence || 'They'} will get this by DM and email."
+      hint: "Sent to them by DM and email."
+
+input "Internal note (optional)",
+      plain_text_input("internal_note", multiline: true, placeholder: "Waiting on a reply from…"),
+      block_id: "internal_note",
+      optional: true,
+      hint: "Private. Only admins ever see this."

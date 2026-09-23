@@ -1,4 +1,6 @@
-status_labels = { "open" => "🟡 Open", "in_progress" => "🔵 In progress", "done" => "🟢 Done", "not_doing" => "⚪ Not doing" }
+# Emoji here, wording from Ticket, so a renamed status stays in step.
+status_emoji = { "open" => "🟡", "in_progress" => "🔵", "done" => "🟢", "wont_do" => "⚪" }
+status_label = ->(status) { "#{status_emoji[status]} #{Ticket.status_label(status)}".strip }
 priority_labels = { "low" => "Low", "medium" => "Medium", "high" => "High", "urgent" => "🔴 Urgent" }
 
 if user&.admin?
@@ -44,7 +46,7 @@ tickets.each do |ticket|
   text = "*<#{SlackNotifier.ticket_url(ticket)}|#{ticket.title}>*\n#{details}"
 
   if user&.admin?
-    status_options = Ticket.statuses.keys.map { |status| option(status_labels[status], "#{ticket.id}:#{status}") }
+    status_options = Ticket.statuses.keys.map { |status| option(status_label.call(status), "#{ticket.id}:#{status}") }
 
     section(
       text,
@@ -57,6 +59,6 @@ tickets.each do |ticket|
       )
     )
   else
-    section("#{text}  ·  #{status_labels[ticket.status]}", markdown: true)
+    section("#{text}  ·  #{status_label.call(ticket.status)}", markdown: true)
   end
 end

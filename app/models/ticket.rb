@@ -6,16 +6,37 @@ class Ticket < ApplicationRecord
   has_many :notes, class_name: "TicketNote", dependent: :destroy
 
   enum :priority, { low: 0, medium: 1, high: 2, urgent: 3 }, default: :low
-  enum :status, { open: 0, in_progress: 1, done: 2, not_doing: 3 }, default: :open
+  enum :status, { open: 0, in_progress: 1, done: 2, wont_do: 3 }, default: :open
 
-  # "Your ticket is now #{status.humanize.downcase}" reads badly for not_doing,
-  # so each state gets a phrase that fits in a sentence.
+  # humanize can't produce "Won't do", and "your ticket is now won't do"
+  # doesn't parse — so labels and sentence forms both live here rather than
+  # being reinvented by each of the web, Slack and MCP surfaces.
+  STATUS_LABELS = {
+    "open" => "Open",
+    "in_progress" => "In progress",
+    "done" => "Done",
+    "wont_do" => "Won't do"
+  }.freeze
+
   STATUS_SENTENCES = {
     "open" => "open again",
     "in_progress" => "in progress",
     "done" => "done",
-    "not_doing" => "closed as not planned"
+    "wont_do" => "closed — won't do"
   }.freeze
+
+  def self.status_label(status)
+    STATUS_LABELS.fetch(status.to_s, status.to_s.humanize)
+  end
+
+  # [label, value] pairs for every select in the app.
+  def self.status_options
+    statuses.keys.map { |status| [ status_label(status), status ] }
+  end
+
+  def status_label
+    self.class.status_label(status)
+  end
 
   def status_sentence
     STATUS_SENTENCES.fetch(status, status.humanize.downcase)

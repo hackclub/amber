@@ -101,9 +101,13 @@ module Slack
       user = User.find_or_create_from_slack(payload.dig("user", "id"), slack_client)
       ticket_id, status = payload.dig("view", "private_metadata").to_s.split(":")
       ticket = Ticket.find_by(id: ticket_id)
+      values = payload.dig("view", "state", "values")
 
-      if user.admin? && ticket
-        ticket.update(status: status, status_note: input(payload.dig("view", "state", "values"), "note"))
+      if user.admin? && ticket && Ticket.statuses.key?(status)
+        ticket.update(status: status, status_note: input(values, "note"))
+
+        internal = input(values, "internal_note")
+        ticket.notes.create(body: internal, author: user) if internal.present?
       end
 
       SlackHomeJob.perform_later(user.slack_id)
