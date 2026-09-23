@@ -26,7 +26,11 @@ class TicketsController < ApplicationController
       return redirect_to @ticket, alert: "Only an admin can update a ticket's status."
     end
 
-    if @ticket.update(status_params)
+    # The note is assigned even when the form didn't send one, so a quick status
+    # change from the dashboard clears a stale note rather than re-sending it.
+    attributes = { status: status_params[:status], status_note: params.dig(:ticket, :status_note) }
+
+    if @ticket.update(attributes)
       redirect_to request.referer.presence || @ticket, notice: "Ticket updated."
     else
       redirect_to @ticket, alert: @ticket.errors.full_messages.to_sentence

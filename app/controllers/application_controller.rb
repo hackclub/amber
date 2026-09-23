@@ -5,11 +5,16 @@ class ApplicationController < ActionController::Base
   # Changes to the importmap will invalidate the etag for HTML responses
   stale_when_importmap_changes
 
+  before_action :start_request_timer
   before_action :require_login
 
   helper_method :current_user, :admin?
 
   private
+
+  def start_request_timer
+    Current.started_at = Time.current
+  end
 
   def current_user
     @current_user ||= User.find_by(id: session[:user_id])

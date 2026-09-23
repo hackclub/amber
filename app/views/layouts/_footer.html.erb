@@ -1,0 +1,26 @@
+<footer class="max-w-5xl mx-auto px-4 sm:px-6 pb-8 -mt-2">
+  <p class="text-xs text-gray-400 font-mono flex flex-wrap items-center gap-x-2 gap-y-1">
+    <span>
+      <%= pluralize(Current.sql_count.to_i, "query") %>
+      in <%= number_with_precision(Current.sql_runtime.to_f, precision: 1) %> ms
+    </span>
+    <span aria-hidden="true">·</span>
+    <span><%= number_with_precision(Current.elapsed_ms, precision: 0) %> ms total</span>
+    <span aria-hidden="true">·</span>
+    <span>
+      <% if AppRevision.github_url %>
+        <%= link_to AppRevision.sha, AppRevision.github_url, class: "hover:text-gray-600 underline decoration-dotted",
+              title: AppRevision.committed_at&.to_fs(:long), target: "_blank", rel: "noopener noreferrer" %>
+      <% else %>
+        <%= AppRevision.sha %>
+      <% end %>
+      <% if AppRevision.committed_at %>
+        <span class="text-gray-300">(<%= time_ago_in_words(AppRevision.committed_at) %> ago)</span>
+      <% end %>
+    </span>
+    <% unless Rails.env.production? %>
+      <span aria-hidden="true">·</span>
+      <span class="text-gray-300"><%= Rails.env %></span>
+    <% end %>
+  </p>
+</footer>

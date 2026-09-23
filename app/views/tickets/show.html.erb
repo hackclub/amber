@@ -10,6 +10,9 @@
     filed by
     <% if admin? %>
       <%= link_to (@ticket.user.name.presence || @ticket.user.email), admin_user_path(@ticket.user), class: "underline" %>
+      <% if (dm_url = slack_dm_url(@ticket.user)) %>
+        &middot; <%= link_to "Message on Slack", dm_url, class: "text-blue-600 hover:underline", target: "_blank", rel: "noopener noreferrer" %>
+      <% end %>
     <% else %>
       <%= @ticket.user.name.presence || @ticket.user.email %>
     <% end %>
@@ -24,10 +27,26 @@
     <%= markdown(@ticket.message) %>
   </div>
 
+  <% if @ticket.status_note.present? %>
+    <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+      <p class="text-xs font-medium text-blue-800 mb-1">Latest update</p>
+      <div class="prose prose-sm max-w-none text-blue-900"><%= markdown(@ticket.status_note) %></div>
+    </div>
+  <% end %>
+
   <% if admin? %>
-    <%= form_with model: @ticket, url: ticket_path(@ticket), method: :patch, class: "flex items-center gap-2" do |f| %>
-      <%= f.label :status, "Update status", class: "text-sm font-medium text-gray-700" %>
-      <%= f.select :status, Ticket.statuses.keys.map { |s| [ s.humanize, s ] }, {}, class: input_classes %>
+    <%= form_with model: @ticket, url: ticket_path(@ticket), method: :patch, class: "bg-white border border-gray-200 rounded-lg p-4 space-y-3" do |f| %>
+      <div class="flex items-center gap-2">
+        <%= f.label :status, "Update status", class: "text-sm font-medium text-gray-700" %>
+        <%= f.select :status, Ticket.statuses.keys.map { |s| [ s.humanize, s ] }, {}, class: input_classes %>
+      </div>
+
+      <div>
+        <%= f.label :status_note, "Note for #{@ticket.user.name.presence || 'them'} (optional)", class: "block text-sm font-medium text-gray-700 mb-1" %>
+        <%= f.text_area :status_note, rows: 3, value: nil, placeholder: "Shipped in this morning's deploy.", class: input_classes("text-sm") %>
+        <p class="text-xs text-gray-400 mt-1">Sent with the status change, by email and Slack DM.</p>
+      </div>
+
       <%= f.submit "Update", class: "bg-red-600 text-white px-3 py-1.5 rounded-md text-sm font-medium hover:bg-red-700 cursor-pointer" %>
     <% end %>
   <% end %>

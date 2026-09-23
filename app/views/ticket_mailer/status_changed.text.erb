@@ -1,7 +1,7 @@
 Your ticket is now <%= @ticket.status.humanize.downcase %>
 
 <%= @ticket.title %>
-
+<%= "\n#{@ticket.status_note}\n" if @ticket.status_note.present? %>
 <%= @ticket.message %>
 
 View ticket: <%= ticket_url(@ticket) %>

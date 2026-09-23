@@ -4,6 +4,8 @@ section(
   markdown: true
 )
 
+section("> #{ticket.status_note.to_s.gsub("\n", "\n> ")}", markdown: true) if ticket.status_note.present?
+
 context [
   mrkdwn_text("#{ticket.service.name} ▸ #{ticket.topic.name}  ·  #{ticket.priority.humanize} priority")
 ]

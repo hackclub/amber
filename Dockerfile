@@ -47,6 +47,11 @@ RUN bundle install && \
 # Copy application code
 COPY . .
 
+# Stamp the commit this image was built from, for the page footer, then drop
+# the git directory so it doesn't ship in the final image.
+RUN (git rev-parse --short HEAD > REVISION && git log -1 --format=%cI >> REVISION) || echo "unknown" > REVISION; \
+    rm -rf .git
+
 # Precompile bootsnap code for faster boot times.
 # -j 1 disable parallel compilation to avoid a QEMU bug: https://github.com/rails/bootsnap/issues/495
 RUN bundle exec bootsnap precompile -j 1 app/ lib/

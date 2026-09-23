@@ -17,6 +17,15 @@ module ApplicationHelper
     "https://cachet.hackclub.com/users/#{user.slack_id}/r" if user&.slack_id.present?
   end
 
+  # Opens a Slack DM with this person in whichever Slack client they use.
+  def slack_dm_url(user)
+    return if user&.slack_id.blank?
+
+    url = "https://slack.com/app_redirect?channel=#{user.slack_id}"
+    team = ENV["SLACK_TEAM_ID"].presence
+    team ? "#{url}&team=#{team}" : url
+  end
+
   def avatar_initial(user)
     (user&.name.presence || user&.email.to_s).to_s.first.to_s.upcase.presence || "?"
   end

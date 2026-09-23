@@ -102,29 +102,78 @@ class Slack::InteractionsControllerTest < ActionDispatch::IntegrationTest
     assert response.parsed_body["errors"]["title"].present?
   end
 
-  test "an admin can change a ticket's status from the Home tab" do
+  test "an admin picking a status from the Home tab gets the note modal" do
     ticket = tickets(:website_bug)
+    client = FakeSlackClient.new
 
-    with_slack_client do
+    with_slack_client(client) do
       slack_post slack_interactions_path, interaction_body(
         type: "block_actions",
+        trigger_id: "trigger-3",
         user: { id: users(:amber).slack_id },
         actions: [ { action_id: "set_status", selected_option: { value: "#{ticket.id}:done" } } ]
       )
     end
 
     assert_response :success
-    assert ticket.reload.done?
+    view = client.calls[:views_open].sole[:view]
+    assert_equal "update_ticket", view["callback_id"]
+    assert_equal "#{ticket.id}:done", view["private_metadata"]
+    # Nothing changes until the modal is submitted.
+    refute ticket.reload.done?
   end
 
-  test "a non-admin cannot change a ticket's status from the Home tab" do
+  test "a non-admin picking a status gets no modal" do
+    ticket = tickets(:website_bug)
+    client = FakeSlackClient.new
+
+    with_slack_client(client) do
+      slack_post slack_interactions_path, interaction_body(
+        type: "block_actions",
+        trigger_id: "trigger-4",
+        user: { id: "U-not-an-admin" },
+        actions: [ { action_id: "set_status", selected_option: { value: "#{ticket.id}:done" } } ]
+      )
+    end
+
+    assert_response :success
+    assert_empty client.calls[:views_open]
+    refute ticket.reload.done?
+  end
+
+  test "submitting the update modal applies the status and note" do
     ticket = tickets(:website_bug)
 
     with_slack_client do
       slack_post slack_interactions_path, interaction_body(
-        type: "block_actions",
-        user: { id: "U-not-an-admin" },
-        actions: [ { action_id: "set_status", selected_option: { value: "#{ticket.id}:done" } } ]
+        type: "view_submission",
+        user: { id: users(:amber).slack_id },
+        view: {
+          callback_id: "update_ticket",
+          private_metadata: "#{ticket.id}:done",
+          state: { values: { note: { note: { value: "Fixed in this morning's deploy." } } } }
+        }
+      )
+    end
+
+    assert_response :success
+    ticket.reload
+    assert ticket.done?
+    assert_equal "Fixed in this morning's deploy.", ticket.status_note
+  end
+
+  test "a non-admin submitting the update modal changes nothing" do
+    ticket = tickets(:website_bug)
+
+    with_slack_client do
+      slack_post slack_interactions_path, interaction_body(
+        type: "view_submission",
+        user: { id: "U-still-not-an-admin" },
+        view: {
+          callback_id: "update_ticket",
+          private_metadata: "#{ticket.id}:done",
+          state: { values: { note: { note: { value: "sneaky" } } } }
+        }
       )
     end
 

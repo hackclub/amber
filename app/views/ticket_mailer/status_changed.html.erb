@@ -2,6 +2,12 @@
 
 <p><strong><%= @ticket.title %></strong></p>
 
+<% if @ticket.status_note.present? %>
+  <blockquote style="border-left: 3px solid #ddd; margin: 0 0 1em; padding-left: 1em;">
+    <%= markdown(@ticket.status_note) %>
+  </blockquote>
+<% end %>
+
 <%= markdown(@ticket.message) %>
 
 <p><%= link_to "View ticket", ticket_url(@ticket) %></p>

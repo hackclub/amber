@@ -4,8 +4,10 @@
     <h1 class="text-2xl font-bold"><%= @user.name.presence || @user.email %></h1>
     <p class="text-sm text-gray-500">
       <%= @user.email %>
-      <% if @user.slack_id.present? %> &middot; Slack <%= @user.slack_id %><% end %>
-      <% if @user.admin? %> &middot; admin (via ADMIN_EMAILS)<% end %>
+      <% if (dm_url = slack_dm_url(@user)) %>
+        &middot; <%= link_to "Message on Slack", dm_url, class: "text-blue-600 hover:underline", target: "_blank", rel: "noopener noreferrer" %>
+      <% end %>
+      <% if @user.admin? %> &middot; admin<% end %>
     </p>
   </div>
 </div>

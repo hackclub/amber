@@ -39,6 +39,27 @@ class TicketsControllerTest < ActionDispatch::IntegrationTest
     assert_response :success
   end
 
+  test "an admin can attach a note to a status change" do
+    sign_in(users(:amber))
+    ticket = tickets(:website_bug)
+
+    patch ticket_path(ticket), params: { ticket: { status: "done", status_note: "Shipped this morning." } }
+
+    ticket.reload
+    assert ticket.done?
+    assert_equal "Shipped this morning.", ticket.status_note
+  end
+
+  test "a status change without a note clears a stale one" do
+    sign_in(users(:amber))
+    ticket = tickets(:website_bug)
+    ticket.update!(status_note: "An old note")
+
+    patch ticket_path(ticket), params: { ticket: { status: "in_progress" } }
+
+    assert_nil ticket.reload.status_note
+  end
+
   test "a non-admin cannot change a ticket's status" do
     sign_in(users(:requester))
     ticket = tickets(:website_bug)

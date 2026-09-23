@@ -33,8 +33,10 @@ end
 divider
 
 tickets.each do |ticket|
+  requester = ticket.user.slack_id.presence ? "<@#{ticket.user.slack_id}>" : "*#{ticket.user.name.presence || ticket.user.email}*"
+
   details = [
-    ("*#{ticket.user.name.presence || ticket.user.email}*" if user&.admin?),
+    (requester if user&.admin?),
     "#{ticket.service.name} ▸ #{ticket.topic.name}",
     priority_labels[ticket.priority],
     "#{time_ago_in_words(ticket.created_at)} ago"

@@ -1,5 +1,7 @@
+requester = ticket.user.slack_id.presence ? "<@#{ticket.user.slack_id}>" : (ticket.user.name.presence || ticket.user.email)
+
 section(
-  "*New ticket from #{ticket.user.name.presence || ticket.user.email}*\n" \
+  "*New ticket from #{requester}*\n" \
   "*<#{SlackNotifier.ticket_url(ticket)}|#{ticket.title}>*",
   markdown: true
 )

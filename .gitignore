@@ -53,3 +53,6 @@ docker-compose.override.yml
 
 # macOS
 .DS_Store
+
+# Commit stamp written during the Docker build
+/REVISION

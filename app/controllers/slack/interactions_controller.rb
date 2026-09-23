@@ -8,13 +8,20 @@ module Slack
       case payload["type"]
       when "shortcut"        then open_modal(payload)
       when "message_action"  then open_modal(payload, message: payload["message"], channel: payload.dig("channel", "id"))
-      when "view_submission" then submit_ticket(payload)
+      when "view_submission" then handle_submission(payload)
       when "block_actions"   then handle_block_action(payload)
       else head :ok
       end
     end
 
     private
+
+    def handle_submission(payload)
+      case payload.dig("view", "callback_id")
+      when "update_ticket" then submit_status(payload)
+      else submit_ticket(payload)
+      end
+    end
 
     def open_modal(payload, message: nil, channel: nil)
       view = render_to_string(
@@ -64,22 +71,43 @@ module Slack
       when "open_new_ticket"
         open_modal(payload)
       when "set_status"
-        set_status(action, slack_user_id)
+        open_status_modal(payload, action, slack_user_id)
         head :ok
       else
         head :ok
       end
     end
 
-    def set_status(action, slack_user_id)
+    # Picking a status opens a modal rather than applying straight away, so
+    # there's somewhere to write the note that goes out with it.
+    def open_status_modal(payload, action, slack_user_id)
       user = User.find_or_create_from_slack(slack_user_id, slack_client)
       return unless user.admin?
 
       ticket_id, status = action.dig("selected_option", "value").to_s.split(":")
       ticket = Ticket.find_by(id: ticket_id)
-      ticket&.update(status: status)
+      return if ticket.nil?
 
-      SlackHomeJob.perform_later(slack_user_id)
+      view = render_to_string(
+        template: "slack/tickets/update",
+        formats: [ :slack_modal ],
+        locals: { ticket: ticket, status: status }
+      )
+
+      slack_client.views_open(trigger_id: payload["trigger_id"], view: JSON.parse(view))
+    end
+
+    def submit_status(payload)
+      user = User.find_or_create_from_slack(payload.dig("user", "id"), slack_client)
+      ticket_id, status = payload.dig("view", "private_metadata").to_s.split(":")
+      ticket = Ticket.find_by(id: ticket_id)
+
+      if user.admin? && ticket
+        ticket.update(status: status, status_note: input(payload.dig("view", "state", "values"), "note"))
+      end
+
+      SlackHomeJob.perform_later(user.slack_id)
+      head :ok
     end
 
     def permalink_for(channel, message_ts)
