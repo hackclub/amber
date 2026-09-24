@@ -18,6 +18,35 @@ class ApplicationHelperTest < ActionView::TestCase
     assert_nil slack_dm_url(nil)
   end
 
+  test "markdown links open in a new tab" do
+    html = markdown("See [the docs](https://example.com/docs)")
+
+    assert_includes html, %(target="_blank")
+    assert_includes html, %(rel="noopener noreferrer")
+  end
+
+  test "bare urls are autolinked and open in a new tab too" do
+    html = markdown("it's at https://example.com/thing")
+
+    assert_includes html, %(href="https://example.com/thing")
+    assert_includes html, %(target="_blank")
+  end
+
+  test "markdown never turns a javascript url into a link" do
+    html = markdown("[click me](javascript:alert)")
+
+    # Redcarpet leaves it as plain text rather than linking it, so what
+    # matters is that no anchor carries the scheme.
+    assert_no_match(/<a[^>]*javascript/i, html)
+    assert_no_match(/<a /, html)
+  end
+
+  test "markdown still strips raw html" do
+    html = markdown("<script>alert(1)</script><b>hi</b>")
+
+    assert_no_match(/<script/, html)
+  end
+
   private
 
   def with_env(values)

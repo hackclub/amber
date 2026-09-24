@@ -20,7 +20,7 @@
   </p>
 
   <% if (safe_url = safe_http_url(@ticket.url)) %>
-    <p class="mb-4"><%= link_to safe_url, safe_url, class: "text-blue-600 hover:underline break-all", rel: "noopener noreferrer" %></p>
+    <p class="mb-4"><%= link_to safe_url, safe_url, class: "text-blue-600 hover:underline break-all", **ApplicationHelper::LINK_ATTRIBUTES %></p>
   <% end %>
 
   <div class="prose prose-sm max-w-none bg-white border border-gray-200 rounded-lg p-4 mb-6">
