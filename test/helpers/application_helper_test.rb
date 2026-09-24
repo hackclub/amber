@@ -18,11 +18,29 @@ class ApplicationHelperTest < ActionView::TestCase
     assert_nil slack_dm_url(nil)
   end
 
-  test "markdown links open in a new tab" do
+  test "links that leave the app open in a new tab" do
     html = markdown("See [the docs](https://example.com/docs)")
 
     assert_includes html, %(target="_blank")
     assert_includes html, %(rel="noopener noreferrer")
+  end
+
+  test "links back into the app stay in the tab" do
+    with_env("APP_HOST" => "amber.hackclub.com") do
+      html = markdown("see [ticket 3](https://amber.hackclub.com/tickets/3)")
+
+      assert_includes html, %(href="https://amber.hackclub.com/tickets/3")
+      assert_no_match(/target=/, html)
+    end
+  end
+
+  test "external_link_attributes decides per host" do
+    with_env("APP_HOST" => "amber.hackclub.com") do
+      assert_equal ApplicationHelper::LINK_ATTRIBUTES, external_link_attributes("https://example.com")
+      assert_empty external_link_attributes("https://amber.hackclub.com/tickets/3")
+      assert_empty external_link_attributes("/tickets/3")
+      assert_empty external_link_attributes(nil)
+    end
   end
 
   test "bare urls are autolinked and open in a new tab too" do

@@ -88,7 +88,8 @@ class Slack::InteractionsControllerTest < ActionDispatch::IntegrationTest
                       .find { |block| block["block_id"] == "message" }
                       .dig("element", "initial_value")
 
-    assert_equal "grants in #hcb-grants see [the thread](https://example.com/x?a=1&b=2)", prefilled
+    assert_equal "grants in [#hcb-grants](https://slack.com/app_redirect?channel=C09N1P69GKZ) " \
+                 "see [the thread](https://example.com/x?a=1&b=2)", prefilled
   end
 
   test "submitting the modal creates a ticket for the Slack user" do

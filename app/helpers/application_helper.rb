@@ -1,12 +1,44 @@
 module ApplicationHelper
-  # Links in a ticket point somewhere else, so they open in a new tab rather
-  # than navigating away from the ticket. noopener/noreferrer because the
-  # destination is whatever the person filing the ticket typed.
+  # Links that leave the app open in a new tab; links back into it don't, so
+  # following one doesn't strand you with two tabs on the same site.
+  # noopener/noreferrer because the destination is whatever someone typed.
   LINK_ATTRIBUTES = { target: "_blank", rel: "noopener noreferrer" }.freeze
 
+  def self.app_host
+    ENV.fetch("APP_HOST", "localhost:3000").split(":").first.downcase
+  end
+
+  def self.external_url?(url)
+    host = URI.parse(url.to_s).host
+    host.present? && host.downcase != app_host
+  rescue URI::InvalidURIError
+    false
+  end
+
+  # Redcarpet's link_attributes would put target="_blank" on every link, so
+  # the decision is made per link here instead.
+  class ExternalLinkRenderer < Redcarpet::Render::HTML
+    def link(url, title, content)
+      # safe_links_only hands back a blank url for a link it refused
+      # (javascript: and friends) — render the text, not an empty anchor.
+      return content if url.blank?
+
+      attributes = %(href="#{ERB::Util.html_escape(url)}")
+      attributes += %( title="#{ERB::Util.html_escape(title)}") if title.present?
+      attributes += %( target="_blank" rel="noopener noreferrer") if ApplicationHelper.external_url?(url)
+
+      "<a #{attributes}>#{content}</a>"
+    end
+
+    def autolink(url, link_type)
+      return super if link_type == :email
+
+      link(url, nil, ERB::Util.html_escape(url))
+    end
+  end
+
   MARKDOWN_RENDERER = Redcarpet::Markdown.new(
-    Redcarpet::Render::HTML.new(filter_html: true, safe_links_only: true, hard_wrap: true,
-                                link_attributes: LINK_ATTRIBUTES),
+    ExternalLinkRenderer.new(filter_html: true, safe_links_only: true, hard_wrap: true),
     autolink: true,
     fenced_code_blocks: true,
     tables: true,
@@ -16,6 +48,10 @@ module ApplicationHelper
   MARKDOWN_TAGS = %w[p br strong em a ul ol li h1 h2 h3 h4 blockquote code pre table thead tbody tr th td hr del].freeze
   # target and rel have to survive sanitising, or the renderer's work is undone.
   MARKDOWN_ATTRIBUTES = %w[href target rel].freeze
+
+  def external_link_attributes(url)
+    ApplicationHelper.external_url?(url) ? LINK_ATTRIBUTES : {}
+  end
 
   def markdown(text)
     sanitize(MARKDOWN_RENDERER.render(text.to_s), tags: MARKDOWN_TAGS, attributes: MARKDOWN_ATTRIBUTES)

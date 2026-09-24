@@ -24,26 +24,52 @@ class SlackTextTest < ActiveSupport::TestCase
     assert_equal "at https://example.com/x", SlackText.to_markdown("at <https://example.com/x>")
   end
 
-  test "channel mentions become readable names" do
-    assert_equal "in #hcb-grants", SlackText.to_markdown("in <#C09N1P69GKZ>", client: client)
-    assert_equal "in #shipped", SlackText.to_markdown("in <#C09N1P69GKZ|shipped>", client: client)
+  test "channel mentions become readable names that link back to Slack" do
+    assert_equal "in [#hcb-grants](https://slack.com/app_redirect?channel=C09N1P69GKZ)",
+                 SlackText.to_markdown("in <#C09N1P69GKZ>", client: client)
+    assert_equal "in [#shipped](https://slack.com/app_redirect?channel=C09N1P69GKZ)",
+                 SlackText.to_markdown("in <#C09N1P69GKZ|shipped>", client: client)
   end
 
-  test "user mentions become readable names" do
-    assert_equal "ask @amber", SlackText.to_markdown("ask <@U054VC2KM9P>", client: client)
-    assert_equal "ask @someone", SlackText.to_markdown("ask <@U054VC2KM9P|someone>", client: client)
+  test "user mentions become readable names that link back to Slack" do
+    assert_equal "ask [@amber](https://slack.com/app_redirect?channel=U054VC2KM9P)",
+                 SlackText.to_markdown("ask <@U054VC2KM9P>", client: client)
+  end
+
+  test "mentions include the workspace when one is configured" do
+    with_env("SLACK_TEAM_ID" => "T0266FRGM") do
+      assert_includes SlackText.to_markdown("<#C09N1P69GKZ>", client: client), "&team=T0266FRGM"
+    end
   end
 
   test "ids survive when there's no client to resolve them" do
-    assert_equal "in #C09N1P69GKZ", SlackText.to_markdown("in <#C09N1P69GKZ>")
-    assert_equal "ask @U054VC2KM9P", SlackText.to_markdown("ask <@U054VC2KM9P>")
+    assert_equal "in [#C09N1P69GKZ](https://slack.com/app_redirect?channel=C09N1P69GKZ)",
+                 SlackText.to_markdown("in <#C09N1P69GKZ>")
   end
 
   test "a failed lookup falls back to the id instead of blowing up" do
     exploding = Object.new
     def exploding.conversations_info(*) = raise(StandardError, "missing_scope")
 
-    assert_equal "in #C09N1P69GKZ", SlackText.to_markdown("in <#C09N1P69GKZ>", client: exploding)
+    assert_includes SlackText.to_markdown("in <#C09N1P69GKZ>", client: exploding), "#C09N1P69GKZ"
+  end
+
+  test "a name containing brackets can't break the link syntax" do
+    weird = FakeSlackClient.new(profile: { name: "x", profile: { display_name: "we[ird]" } })
+
+    result = SlackText.to_markdown("ask <@U1>", client: weird)
+
+    assert_equal "ask [@weird](https://slack.com/app_redirect?channel=U1)", result
+  end
+
+  private
+
+  def with_env(values)
+    original = values.keys.index_with { |key| ENV[key] }
+    values.each { |key, value| ENV[key] = value }
+    yield
+  ensure
+    original.each { |key, value| ENV[key] = value }
   end
 
   test "broadcasts read as mentions" do
