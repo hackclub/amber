@@ -67,6 +67,30 @@ class Slack::InteractionsControllerTest < ActionDispatch::IntegrationTest
     assert_equal "https://hackclub.slack.com/archives/C1/p1700000000", url.dig("element", "initial_value")
   end
 
+  test "Slack's escaping and mention syntax are cleaned up before they reach the modal" do
+    client = FakeSlackClient.new
+
+    with_slack_client(client) do
+      slack_post slack_interactions_path, interaction_body(
+        type: "message_action",
+        callback_id: "create_ticket_from_message",
+        trigger_id: "trigger-6",
+        user: { id: "U1" },
+        channel: { id: "C1" },
+        message: {
+          ts: "1700000000.000100",
+          text: "grants in <#C09N1P69GKZ> see <https://example.com/x?a=1&amp;b=2|the thread>"
+        }
+      )
+    end
+
+    prefilled = client.calls[:views_open].sole[:view]["blocks"]
+                      .find { |block| block["block_id"] == "message" }
+                      .dig("element", "initial_value")
+
+    assert_equal "grants in #hcb-grants see [the thread](https://example.com/x?a=1&b=2)", prefilled
+  end
+
   test "submitting the modal creates a ticket for the Slack user" do
     client = FakeSlackClient.new
 

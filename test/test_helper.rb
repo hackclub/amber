@@ -10,7 +10,10 @@ class FakeSlackClient
 
   def initialize(profile: nil)
     @calls = Hash.new { |hash, key| hash[key] = [] }
-    @profile = profile || { name: "someone", profile: { real_name: "Some One", email: "someone@example.com" } }
+    @profile = profile || {
+      name: "someone",
+      profile: { real_name: "Some One", display_name: "amber", email: "someone@example.com" }
+    }
   end
 
   def method_missing(name, **kwargs)
@@ -18,6 +21,7 @@ class FakeSlackClient
 
     case name
     when :users_info then Hashie::Mash.new(user: @profile)
+    when :conversations_info then Hashie::Mash.new(channel: { id: kwargs[:channel], name: "hcb-grants" })
     when :chat_getPermalink then { "permalink" => "https://hackclub.slack.com/archives/C1/p1700000000" }
     else { "ok" => true }
     end

@@ -29,7 +29,7 @@ module Slack
         formats: [ :slack_modal ],
         locals: {
           services: Service.active.includes(:topics).order(:name),
-          initial_message: message&.dig("text"),
+          initial_message: SlackText.to_markdown(message&.dig("text"), client: slack_client).presence,
           initial_url: message && permalink_for(channel, message["ts"])
         }
       )
