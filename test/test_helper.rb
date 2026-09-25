@@ -21,7 +21,12 @@ class FakeSlackClient
 
     case name
     when :users_info then Hashie::Mash.new(user: @profile)
-    when :conversations_info then Hashie::Mash.new(channel: { id: kwargs[:channel], name: "hcb-grants" })
+    when :conversations_info
+      if kwargs[:channel].to_s.start_with?("D")
+        Hashie::Mash.new(channel: { id: kwargs[:channel], is_im: true, user: "U054VC2KM9P" })
+      else
+        Hashie::Mash.new(channel: { id: kwargs[:channel], name: "hcb-grants" })
+      end
     when :chat_getPermalink then { "permalink" => "https://hackclub.slack.com/archives/C1/p1700000000" }
     else { "ok" => true }
     end

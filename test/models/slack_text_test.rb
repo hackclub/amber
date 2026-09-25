@@ -75,10 +75,18 @@ class SlackTextTest < ActiveSupport::TestCase
     assert_equal "#hcb-grants", SlackText.permalink_channel(url, client: client)
   end
 
-  test "a DM permalink says so rather than naming a channel" do
+  test "a DM permalink names who it's with when the token can see that" do
     url = "https://hackclub.slack.com/archives/D086UU94KHR/p1790105752663349"
 
-    assert_equal "a DM", SlackText.permalink_channel(url, client: client)
+    assert_equal "a DM with @amber", SlackText.permalink_channel(url, client: client)
+  end
+
+  test "a DM the token can't see into still reads sensibly" do
+    blind = Object.new
+    def blind.conversations_info(*) = Hashie::Mash.new(channel: { id: "D1" })
+
+    url = "https://hackclub.slack.com/archives/D086UU94KHR/p1790105752663349"
+    assert_equal "a DM", SlackText.permalink_channel(url, client: blind)
   end
 
   test "an unresolvable channel degrades instead of showing an id" do

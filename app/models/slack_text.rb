@@ -27,13 +27,14 @@ module SlackText
   def self.permalink_channel(url, client: nil)
     id = PERMALINK.match(url.to_s)&.[](:channel)
     return if id.nil?
-    return "a DM" if id.start_with?("D")
 
-    name = Rails.cache.fetch("slack/channel/#{id}", expires_in: 1.week) do
-      Names.new(client).channel(id)
+    label = Rails.cache.fetch("slack/conversation/#{id}", expires_in: 1.week) do
+      names = Names.new(client)
+      id.start_with?("D") ? names.dm(id) : "##{names.channel(id)}"
     end
 
-    name == id ? "Slack" : "##{name}"
+    # Unresolvable ids are no use to a reader, so say nothing specific.
+    label.include?(id) ? (id.start_with?("D") ? "a DM" : "Slack") : label
   end
 
   # Opens the channel, or a DM with the person, in whichever Slack client
@@ -90,6 +91,15 @@ module SlackText
 
     def channel(id)
       resolve(id) { @client.conversations_info(channel: id).channel.name }
+    end
+
+    # A DM has no name of its own — only the person on the other end, which
+    # a bot token can't see. With a user token this reads "a DM with @someone".
+    def dm(id)
+      resolve("dm:#{id}") do
+        other = @client.conversations_info(channel: id).channel.user
+        other.present? ? "a DM with @#{user(other)}" : id
+      end
     end
 
     private
