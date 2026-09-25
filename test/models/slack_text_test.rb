@@ -62,6 +62,33 @@ class SlackTextTest < ActiveSupport::TestCase
     assert_equal "ask [@weird](https://slack.com/app_redirect?channel=U1)", result
   end
 
+  test "recognises a Slack permalink" do
+    assert SlackText.permalink?("https://hackclub.slack.com/archives/C0AR0M43H61/p1790186475464309?thread_ts=1")
+    refute SlackText.permalink?("https://example.com/archives/C1/p1")
+    refute SlackText.permalink?("https://hackclub.slack.com/team/U1")
+    refute SlackText.permalink?(nil)
+  end
+
+  test "names the channel a permalink points at" do
+    url = "https://hackclub.slack.com/archives/C0AR0M43H61/p1790186475464309"
+
+    assert_equal "#hcb-grants", SlackText.permalink_channel(url, client: client)
+  end
+
+  test "a DM permalink says so rather than naming a channel" do
+    url = "https://hackclub.slack.com/archives/D086UU94KHR/p1790105752663349"
+
+    assert_equal "a DM", SlackText.permalink_channel(url, client: client)
+  end
+
+  test "an unresolvable channel degrades instead of showing an id" do
+    exploding = Object.new
+    def exploding.conversations_info(*) = raise(StandardError, "channel_not_found")
+
+    url = "https://hackclub.slack.com/archives/C0AR0M43H61/p1790186475464309"
+    assert_equal "Slack", SlackText.permalink_channel(url, client: exploding)
+  end
+
   private
 
   def with_env(values)

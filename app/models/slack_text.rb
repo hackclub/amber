@@ -16,6 +16,26 @@ module SlackText
     unescape(text.to_s.gsub(/<([^<>]+)>/) { token($1, names) })
   end
 
+  PERMALINK = %r{\Ahttps://[\w-]+\.slack\.com/archives/(?<channel>[A-Z0-9]+)/p\d+}i
+
+  def self.permalink?(url)
+    PERMALINK.match?(url.to_s)
+  end
+
+  # "#fulfilment", or "a DM" / "a private channel" when that's all we can say.
+  # Cached, because it's read on every view of a ticket.
+  def self.permalink_channel(url, client: nil)
+    id = PERMALINK.match(url.to_s)&.[](:channel)
+    return if id.nil?
+    return "a DM" if id.start_with?("D")
+
+    name = Rails.cache.fetch("slack/channel/#{id}", expires_in: 1.week) do
+      Names.new(client).channel(id)
+    end
+
+    name == id ? "Slack" : "##{name}"
+  end
+
   # Opens the channel, or a DM with the person, in whichever Slack client
   # they use. Same redirect the "Message on Slack" link uses.
   def self.deep_link(id)

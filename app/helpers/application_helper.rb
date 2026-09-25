@@ -49,6 +49,15 @@ module ApplicationHelper
   # target and rel have to survive sanitising, or the renderer's work is undone.
   MARKDOWN_ATTRIBUTES = %w[href target rel].freeze
 
+  # A Slack permalink is ~200 unreadable characters, so it gets a label
+  # instead. Everything else shows the URL, which is the useful part.
+  def ticket_link_label(url)
+    return url unless SlackText.permalink?(url)
+
+    where = SlackText.permalink_channel(url, client: SlackNotifier.reader)
+    where.in?([ nil, "Slack" ]) ? "View message in Slack" : "View message in #{where}"
+  end
+
   def external_link_attributes(url)
     ApplicationHelper.external_url?(url) ? LINK_ATTRIBUTES : {}
   end

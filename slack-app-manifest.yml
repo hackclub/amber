@@ -43,6 +43,15 @@ oauth_config:
       - users.profile:read
       - channels:read
       - channels:history
+    # Read-only, and used only to put names to channel and user IDs: a bot
+    # can't see inside private channels or DMs it isn't a member of, so
+    # permalinks to those would otherwise render as bare IDs.
+    user:
+      - channels:read
+      - groups:read
+      - im:read
+      - mpim:read
+      - users:read
 
 settings:
   interactivity:

@@ -20,7 +20,11 @@
   </p>
 
   <% if (safe_url = safe_http_url(@ticket.url)) %>
-    <p class="mb-4"><%= link_to safe_url, safe_url, class: "text-blue-600 hover:underline break-all", **external_link_attributes(safe_url) %></p>
+    <p class="mb-4">
+      <%= link_to ticket_link_label(safe_url), safe_url,
+            class: "inline-flex items-center gap-1.5 text-blue-600 hover:underline break-all",
+            **external_link_attributes(safe_url) %>
+    </p>
   <% end %>
 
   <div class="prose prose-sm max-w-none break-words [overflow-wrap:anywhere] prose-pre:overflow-x-auto bg-white border border-gray-200 rounded-lg p-4 mb-6">

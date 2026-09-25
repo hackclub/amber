@@ -10,6 +10,16 @@ class SlackNotifier
       ::Slack::Web::Client.new(token: ENV.fetch("SLACK_BOT_TOKEN", nil))
     end
 
+    # Read-only lookups (channel and user names) go through Amber's user token
+    # when one is configured, because a bot can't see inside private channels
+    # or DMs it isn't in. Never used for posting — that stays the bot.
+    def reader
+      token = ENV["SLACK_USER_TOKEN"].presence
+      return client if token.nil?
+
+      ::Slack::Web::Client.new(token: token)
+    end
+
     def ticket_created(ticket)
       User.admins.on_slack.find_each do |admin|
         dm(admin.slack_id, "New ticket: #{ticket.title}", "slack/notifications/ticket_created", ticket: ticket)
