@@ -262,6 +262,94 @@ class Slack::InteractionsControllerTest < ActionDispatch::IntegrationTest
     refute ticket.reload.done?
   end
 
+  test "a deadline picked in the modal lands on the ticket" do
+    payload = submission_payload
+    payload[:view][:state][:values][:due] = { due: { selected_date_time: 1_790_000_000 } }
+
+    with_slack_client do
+      slack_post slack_interactions_path, interaction_body(payload)
+    end
+
+    assert_equal Time.zone.at(1_790_000_000), Ticket.last.due_at
+  end
+
+  test "an untouched deadline picker leaves the ticket without one" do
+    with_slack_client do
+      slack_post slack_interactions_path, interaction_body(submission_payload)
+    end
+
+    assert_nil Ticket.last.due_at
+  end
+
+  test "the update modal can set a deadline and link a blocker" do
+    ticket = tickets(:website_bug)
+    blocker = users(:requester).tickets.create!(
+      title: "The thing it waits on", message: "…", service: services(:website), topic: topics(:bug)
+    )
+
+    with_slack_client do
+      slack_post slack_interactions_path, interaction_body(
+        type: "view_submission",
+        user: { id: users(:amber).slack_id },
+        view: {
+          callback_id: "update_ticket",
+          private_metadata: "#{ticket.id}:in_progress",
+          state: { values: {
+            due: { due: { selected_date_time: 1_790_000_000 } },
+            blocker: { blocker: { selected_option: { value: blocker.id.to_s } } }
+          } }
+        }
+      )
+    end
+
+    ticket.reload
+    assert_equal Time.zone.at(1_790_000_000), ticket.due_at
+    assert_equal [ blocker ], ticket.blockers
+    assert ticket.blocked?
+  end
+
+  test "the update modal can clear a deadline" do
+    ticket = tickets(:website_bug)
+    ticket.update!(due_at: 1.day.from_now)
+
+    with_slack_client do
+      slack_post slack_interactions_path, interaction_body(
+        type: "view_submission",
+        user: { id: users(:amber).slack_id },
+        view: {
+          callback_id: "update_ticket",
+          private_metadata: "#{ticket.id}:in_progress",
+          state: { values: {
+            due: { due: { selected_date_time: ticket.due_at.to_i } },
+            clear_due: { clear_due: { selected_options: [ { value: "clear" } ] } }
+          } }
+        }
+      )
+    end
+
+    assert_nil ticket.reload.due_at
+  end
+
+  test "an untouched deadline picker in the update modal keeps the existing one" do
+    ticket = tickets(:website_bug)
+    ticket.update!(due_at: 1.day.from_now)
+    was = ticket.due_at
+
+    with_slack_client do
+      slack_post slack_interactions_path, interaction_body(
+        type: "view_submission",
+        user: { id: users(:amber).slack_id },
+        view: {
+          callback_id: "update_ticket",
+          private_metadata: "#{ticket.id}:done",
+          state: { values: {} }
+        }
+      )
+    end
+
+    assert_equal was.to_i, ticket.reload.due_at.to_i
+  end
+
   private
 
   def submission_payload

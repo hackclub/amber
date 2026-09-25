@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_09_23_191216) do
+ActiveRecord::Schema[8.1].define(version: 2026_09_25_211622) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -64,6 +64,16 @@ ActiveRecord::Schema[8.1].define(version: 2026_09_23_191216) do
     t.index ["name"], name: "index_services_on_name", unique: true
   end
 
+  create_table "ticket_blocks", force: :cascade do |t|
+    t.bigint "blocked_ticket_id", null: false
+    t.bigint "blocker_ticket_id", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["blocked_ticket_id", "blocker_ticket_id"], name: "index_ticket_blocks_on_blocked_ticket_id_and_blocker_ticket_id", unique: true
+    t.index ["blocked_ticket_id"], name: "index_ticket_blocks_on_blocked_ticket_id"
+    t.index ["blocker_ticket_id"], name: "index_ticket_blocks_on_blocker_ticket_id"
+  end
+
   create_table "ticket_notes", force: :cascade do |t|
     t.bigint "author_id", null: false
     t.text "body", null: false
@@ -76,6 +86,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_09_23_191216) do
 
   create_table "tickets", force: :cascade do |t|
     t.datetime "created_at", null: false
+    t.datetime "due_at"
     t.text "message", null: false
     t.integer "priority", default: 0, null: false
     t.bigint "service_id", null: false
@@ -121,6 +132,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_09_23_191216) do
   add_foreign_key "oauth_grants", "users"
   add_foreign_key "oauth_tokens", "oauth_clients"
   add_foreign_key "oauth_tokens", "users"
+  add_foreign_key "ticket_blocks", "tickets", column: "blocked_ticket_id"
+  add_foreign_key "ticket_blocks", "tickets", column: "blocker_ticket_id"
   add_foreign_key "ticket_notes", "tickets"
   add_foreign_key "ticket_notes", "users", column: "author_id"
   add_foreign_key "tickets", "services"

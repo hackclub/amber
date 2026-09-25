@@ -119,4 +119,131 @@ class TicketTest < ActiveSupport::TestCase
       ticket.update!(title: "A different title")
     end
   end
+
+  # --- deadlines ---------------------------------------------------------
+
+  test "a passed deadline on an unfinished ticket is overdue" do
+    ticket = Ticket.create!(valid_attributes.merge(due_at: 2.days.ago))
+
+    assert ticket.overdue?
+    refute ticket.due_soon?
+    assert_match(/overdue/, ticket.due_label)
+  end
+
+  test "a deadline inside the window is due soon" do
+    ticket = Ticket.create!(valid_attributes.merge(due_at: 1.day.from_now))
+
+    assert ticket.due_soon?
+    refute ticket.overdue?
+    assert_match(/\Adue in /, ticket.due_label)
+  end
+
+  test "a distant deadline is neither" do
+    ticket = Ticket.create!(valid_attributes.merge(due_at: 3.weeks.from_now))
+
+    refute ticket.due_soon?
+    refute ticket.overdue?
+  end
+
+  test "a finished ticket is never overdue, and stops being nagged at" do
+    ticket = Ticket.create!(valid_attributes.merge(due_at: 2.days.ago, status: :done))
+
+    refute ticket.overdue?
+    assert_match(/\Awas due /, ticket.due_label)
+  end
+
+  test "no deadline, no label" do
+    assert_nil Ticket.new(valid_attributes).due_label
+    assert_nil Ticket.new(valid_attributes).due_on
+  end
+
+  test "a deadline reads with its zone attached" do
+    ticket = Ticket.create!(valid_attributes.merge(due_at: Time.utc(2026, 10, 1, 17, 0)))
+
+    assert_match(/1 Oct 2026/, ticket.due_on)
+    assert_match(/#{Time.zone.now.strftime('%Z')}/, ticket.due_on)
+  end
+
+  test "an imminent deadline outranks priority in the queue" do
+    soon = Ticket.create!(valid_attributes.merge(title: "Due tomorrow", priority: :low, due_at: 1.day.from_now))
+    urgent = Ticket.create!(valid_attributes.merge(title: "No deadline", priority: :urgent))
+
+    queue = Ticket.needs_attention.ordered_for_admin.to_a
+
+    assert_operator queue.index(soon), :<, queue.index(urgent)
+  end
+
+  test "the earlier of two deadlines comes first" do
+    later = Ticket.create!(valid_attributes.merge(title: "Later", due_at: 2.days.from_now))
+    sooner = Ticket.create!(valid_attributes.merge(title: "Sooner", due_at: 1.hour.from_now))
+
+    queue = Ticket.needs_attention.ordered_for_admin.to_a
+
+    assert_operator queue.index(sooner), :<, queue.index(later)
+  end
+
+  # --- blocking ----------------------------------------------------------
+
+  test "a ticket is blocked only while its blocker is unfinished" do
+    blocked = Ticket.create!(valid_attributes.merge(title: "Waiting"))
+    blocker = Ticket.create!(valid_attributes.merge(title: "In the way"))
+    blocked.blocked_links.create!(blocker_ticket: blocker)
+
+    assert blocked.reload.blocked?
+
+    blocker.update!(status: :done)
+
+    refute blocked.reload.blocked?
+  end
+
+  test "a won't-do blocker unblocks too — it is never getting done" do
+    blocked = Ticket.create!(valid_attributes.merge(title: "Waiting"))
+    blocker = Ticket.create!(valid_attributes.merge(title: "In the way"))
+    blocked.blocked_links.create!(blocker_ticket: blocker)
+    blocker.update!(status: :wont_do)
+
+    refute blocked.reload.blocked?
+  end
+
+  test "a blocked ticket sinks below one you can actually start" do
+    blocked = Ticket.create!(valid_attributes.merge(title: "Blocked", priority: :urgent))
+    startable = Ticket.create!(valid_attributes.merge(title: "Startable", priority: :low))
+    blocked.blocked_links.create!(blocker_ticket: Ticket.create!(valid_attributes.merge(title: "Blocker")))
+
+    queue = Ticket.needs_attention.ordered_for_admin.to_a
+
+    assert_operator queue.index(startable), :<, queue.index(blocked)
+  end
+
+  test "finishing the blocker floats a ticket back up the queue" do
+    blocked = Ticket.create!(valid_attributes.merge(title: "Blocked", priority: :urgent))
+    startable = Ticket.create!(valid_attributes.merge(title: "Startable", priority: :low))
+    blocker = Ticket.create!(valid_attributes.merge(title: "Blocker"))
+    blocked.blocked_links.create!(blocker_ticket: blocker)
+
+    blocker.update!(status: :done)
+    queue = Ticket.needs_attention.ordered_for_admin.to_a
+
+    assert_operator queue.index(blocked), :<, queue.index(startable)
+  end
+
+  test "candidates to wait on exclude the ticket itself and its current blockers" do
+    ticket = Ticket.create!(valid_attributes.merge(title: "Mine"))
+    blocker = Ticket.create!(valid_attributes.merge(title: "Already linked"))
+    finished = Ticket.create!(valid_attributes.merge(title: "Finished", status: :done))
+    ticket.blocked_links.create!(blocker_ticket: blocker)
+
+    candidates = ticket.reload.blocker_candidates
+
+    refute_includes candidates, ticket
+    refute_includes candidates, blocker
+    refute_includes candidates, finished
+    assert_includes candidates, tickets(:website_bug)
+  end
+
+  test "a reference is short enough for a Slack option label" do
+    ticket = Ticket.create!(valid_attributes.merge(title: "A " * 100))
+
+    assert_operator ticket.reference.length, :<=, 75
+  end
 end

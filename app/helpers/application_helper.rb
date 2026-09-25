@@ -131,4 +131,13 @@ module ApplicationHelper
   def status_badge_classes(status)
     STATUS_CLASSES.fetch(status.to_s, "bg-gray-100 text-gray-700")
   end
+
+  # Red once a deadline has passed, amber as it approaches, quiet otherwise —
+  # so a glance down the queue shows what's actually burning.
+  def due_badge_classes(ticket)
+    return "bg-red-100 text-red-700" if ticket.overdue?
+    return "bg-amber-100 text-amber-800" if ticket.due_soon?
+
+    "bg-gray-100 text-gray-600"
+  end
 end

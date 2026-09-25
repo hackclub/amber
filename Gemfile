@@ -75,7 +75,7 @@ gem "omniauth_openid_connect", "~> 0.8"
 
 gem "omniauth-rails_csrf_protection", "~> 2.0"
 
-gem "dotenv-rails", "~> 3.2", groups: [:development, :test]
+gem "dotenv-rails", "~> 3.2", groups: [ :development, :test ]
 
 gem "letter_opener", "~> 1.10", group: :development
 

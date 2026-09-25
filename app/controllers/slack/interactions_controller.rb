@@ -49,7 +49,8 @@ module Slack
         topic_id: topic_id,
         priority: selected(values, "priority"),
         url: input(values, "url"),
-        message: input(values, "message")
+        message: input(values, "message"),
+        due_at: picked_time(values, "due")
       )
 
       if ticket.save
@@ -104,10 +105,13 @@ module Slack
       values = payload.dig("view", "state", "values")
 
       if user.admin? && ticket && Ticket.statuses.key?(status)
-        ticket.update(status: status, status_note: input(values, "note"))
+        ticket.update(status: status, status_note: input(values, "note"), **deadline_change(values, ticket))
 
         internal = input(values, "internal_note")
         ticket.notes.create(body: internal, author: user) if internal.present?
+
+        blocker_id = selected(values, "blocker")
+        ticket.blocked_links.create(blocker_ticket_id: blocker_id) if blocker_id.present?
       end
 
       SlackHomeJob.perform_later(user.slack_id)
@@ -129,6 +133,26 @@ module Slack
         .transform_values { |attribute| ticket.errors[attribute].to_sentence.presence }
         .compact
         .presence || { "title" => ticket.errors.full_messages.to_sentence }
+    end
+
+    # The modal can set a deadline or clear it; an untouched picker leaves it
+    # alone, so the attribute is only included when something was said.
+    def deadline_change(values, ticket)
+      return { due_at: nil } if checked?(values, "clear_due")
+
+      due = picked_time(values, "due")
+      due && due != ticket.due_at ? { due_at: due } : {}
+    end
+
+    # A datetimepicker hands back a unix timestamp, or nothing when untouched.
+    def picked_time(values, block_id)
+      epoch = values.dig(block_id, block_id, "selected_date_time")
+
+      Time.zone.at(epoch) if epoch.present?
+    end
+
+    def checked?(values, block_id)
+      values.dig(block_id, block_id, "selected_options").present?
     end
 
     def input(values, block_id)

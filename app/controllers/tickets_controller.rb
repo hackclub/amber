@@ -1,4 +1,6 @@
 class TicketsController < ApplicationController
+  include TicketStreams
+
   before_action :set_ticket, only: [ :show, :update ]
   before_action :authorize_ticket!, only: [ :show, :update ]
 
@@ -53,9 +55,8 @@ class TicketsController < ApplicationController
     end
   end
 
-  # Sent to both pages that can change a status. Turbo drops any stream whose
-  # target isn't on the current page, so the ticket page gets its badge/note/
-  # form back and the dashboard gets its queue re-rendered.
+  # Sent to both pages that can change a status: the ticket page gets its
+  # badge/note/form back and the dashboard gets its queue re-rendered.
   def status_streams(updated, error)
     streams = [ updated ? flash_stream(notice: "Ticket updated.") : flash_stream(alert: error) ]
     return streams unless updated
@@ -64,8 +65,9 @@ class TicketsController < ApplicationController
       turbo_stream.replace(helpers.dom_id(@ticket, :status), partial: "tickets/status_badge", locals: { ticket: @ticket }),
       turbo_stream.replace(helpers.dom_id(@ticket, :status_note), partial: "tickets/status_note", locals: { ticket: @ticket }),
       turbo_stream.replace(helpers.dom_id(@ticket, :status_form), partial: "tickets/status_form", locals: { ticket: @ticket }),
-      turbo_stream.replace("queue", partial: "dashboard/queue",
-                           locals: { tickets: Ticket.needs_attention.ordered_for_admin.includes(:user, :service, :topic) })
+      # Finishing a ticket can unblock others, and a closed ticket stops
+      # being overdue, so the scheduling box and its badge move too.
+      *scheduling_streams(@ticket)
     ]
   end
 
@@ -80,7 +82,7 @@ class TicketsController < ApplicationController
   end
 
   def ticket_params
-    params.expect(ticket: [ :title, :service_id, :topic_id, :url, :priority, :message ])
+    params.expect(ticket: [ :title, :service_id, :topic_id, :url, :priority, :message, :due_at ])
   end
 
   def status_params

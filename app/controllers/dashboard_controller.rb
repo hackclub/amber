@@ -5,9 +5,9 @@ class DashboardController < ApplicationController
     return unless current_user
 
     if admin?
-      @tickets = Ticket.needs_attention.ordered_for_admin.includes(:user, :service, :topic)
+      @tickets = Ticket.needs_attention.ordered_for_admin.includes(:user, :service, :topic, :blockers)
     else
-      @tickets = current_user.tickets.order(created_at: :desc).includes(:service, :topic)
+      @tickets = current_user.tickets.order(created_at: :desc).includes(:service, :topic, :blockers)
     end
   end
 end

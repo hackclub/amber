@@ -56,9 +56,9 @@ class SlackNotifier
 
     def home_tickets(user)
       if user&.admin?
-        Ticket.needs_attention.ordered_for_admin.includes(:user, :service, :topic).limit(40)
+        Ticket.needs_attention.ordered_for_admin.includes(:user, :service, :topic, :blockers).limit(40)
       elsif user
-        user.tickets.order(created_at: :desc).includes(:service, :topic).limit(40)
+        user.tickets.order(created_at: :desc).includes(:service, :topic, :blockers).limit(40)
       else
         Ticket.none
       end

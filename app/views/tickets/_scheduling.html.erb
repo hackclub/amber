@@ -1,0 +1,62 @@
+<div id="<%= dom_id(ticket, :scheduling) %>" class="bg-amber-50 border border-amber-200 rounded-lg p-4 mb-6 space-y-5">
+  <div>
+    <h2 class="text-sm font-semibold text-amber-900 mb-2">Deadline</h2>
+
+    <div class="flex items-end gap-2 flex-wrap">
+      <%= form_with model: ticket, url: ticket_deadline_path(ticket), method: :patch, class: "flex items-end gap-2" do |f| %>
+        <%= f.datetime_local_field :due_at, class: input_classes("text-sm") %>
+        <%= f.submit ticket.due_at.present? ? "Change" : "Set", class: "shrink-0 text-sm bg-amber-600 text-white px-3 py-2 rounded-md font-medium hover:bg-amber-700 cursor-pointer" %>
+      <% end %>
+
+      <% if ticket.due_at.present? %>
+        <%= button_to "Clear", ticket_deadline_path(ticket), method: :delete,
+              class: "text-sm px-3 py-2 rounded-md font-medium text-amber-900 hover:bg-amber-100 cursor-pointer" %>
+      <% end %>
+    </div>
+
+    <% if ticket.due_at.present? %>
+      <p class="text-xs text-amber-700 mt-1">Due <%= ticket.due_on %> — <%= ticket.due_label %>.</p>
+    <% end %>
+  </div>
+
+  <div>
+    <h2 class="text-sm font-semibold text-amber-900">Waiting on</h2>
+    <p class="text-xs text-amber-700 mb-2">Blocked tickets sink to the bottom of the queue until what they're waiting on is finished.</p>
+
+    <ul class="space-y-1 empty:hidden mb-2">
+      <% ticket.blocked_links.includes(:blocker_ticket).each do |link| %>
+        <li class="flex items-center gap-2 text-sm">
+          <%= render "tickets/status_badge", ticket: link.blocker_ticket %>
+          <%= link_to link.blocker_ticket.reference, ticket_path(link.blocker_ticket), class: "hover:underline truncate" %>
+          <%= button_to "Remove", ticket_block_path(ticket, link), method: :delete,
+                class: "shrink-0 text-xs text-amber-800 underline hover:no-underline cursor-pointer" %>
+        </li>
+      <% end %>
+    </ul>
+
+    <% candidates = ticket.blocker_candidates.includes(:user) %>
+    <% if candidates.any? %>
+      <%= form_with url: ticket_blocks_path(ticket), class: "flex items-center gap-2" do |f| %>
+        <%= f.select :blocker_ticket_id, candidates.map { |candidate| [ candidate.reference, candidate.id ] },
+              { prompt: "Pick a ticket this one is waiting on" }, class: input_classes("text-sm") %>
+        <%= f.submit "Add", class: "shrink-0 text-sm bg-amber-600 text-white px-3 py-2 rounded-md font-medium hover:bg-amber-700 cursor-pointer" %>
+      <% end %>
+    <% else %>
+      <p class="text-xs text-amber-700">Nothing else is outstanding to wait on.</p>
+    <% end %>
+  </div>
+
+  <% if ticket.blocking.any? %>
+    <div>
+      <h2 class="text-sm font-semibold text-amber-900 mb-2">Blocking</h2>
+      <ul class="space-y-1">
+        <% ticket.blocking.each do |blocked| %>
+          <li class="flex items-center gap-2 text-sm">
+            <%= render "tickets/status_badge", ticket: blocked %>
+            <%= link_to blocked.reference, ticket_path(blocked), class: "hover:underline truncate" %>
+          </li>
+        <% end %>
+      </ul>
+    </div>
+  <% end %>
+</div>

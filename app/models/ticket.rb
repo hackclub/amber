@@ -5,8 +5,18 @@ class Ticket < ApplicationRecord
 
   has_many :notes, class_name: "TicketNote", dependent: :destroy
 
+  # "This ticket is waiting on those ones", and the reverse.
+  has_many :blocked_links, class_name: "TicketBlock", foreign_key: :blocked_ticket_id, dependent: :destroy
+  has_many :blockers, through: :blocked_links, source: :blocker_ticket
+  has_many :blocking_links, class_name: "TicketBlock", foreign_key: :blocker_ticket_id, dependent: :destroy
+  has_many :blocking, through: :blocking_links, source: :blocked_ticket
+
   enum :priority, { low: 0, medium: 1, high: 2, urgent: 3 }, default: :low
   enum :status, { open: 0, in_progress: 1, done: 2, wont_do: 3 }, default: :open
+
+  # How close a deadline has to be before it starts outranking priority in
+  # the queue, and before the badge turns amber.
+  DUE_SOON = 3.days
 
   # humanize can't produce "Won't do", and "your ticket is now won't do"
   # doesn't parse — so labels and sentence forms both live here rather than
@@ -48,14 +58,108 @@ class Ticket < ApplicationRecord
   validate :url_must_be_http_or_https
 
   scope :needs_attention, -> { where(status: [ :open, :in_progress ]) }
-  scope :ordered_for_admin, -> {
-    joins(:user).order(Arel.sql("users.priority_boost DESC, tickets.priority DESC, tickets.created_at ASC"))
-  }
+
+  # Whether anything unfinished is standing in this ticket's way, as SQL, so
+  # the queue can sort on it without loading every ticket's blockers.
+  OUTSTANDING_BLOCKERS = <<~SQL.squish.freeze
+    EXISTS (
+      SELECT 1 FROM ticket_blocks
+      JOIN tickets AS blockers ON blockers.id = ticket_blocks.blocker_ticket_id
+      WHERE ticket_blocks.blocked_ticket_id = tickets.id
+        AND blockers.status IN (#{statuses[:open]}, #{statuses[:in_progress]})
+    )
+  SQL
+
+  scope :ordered_for_admin, -> { joins(:user).order(Arel.sql(admin_order_sql)) }
+
+  # A ticket you can't start yet is noise at the top of a queue, so blocked
+  # ones sink; a deadline that's nearly here outranks a vague "urgent", so
+  # those rise; everything else keeps the old VIP → priority → age order.
+  def self.admin_order_sql
+    sanitize_sql_array([
+      "(#{OUTSTANDING_BLOCKERS}) ASC, " \
+      "(tickets.due_at IS NOT NULL AND tickets.due_at <= ?) DESC, " \
+      "users.priority_boost DESC, tickets.priority DESC, " \
+      "tickets.due_at ASC NULLS LAST, tickets.created_at ASC",
+      DUE_SOON.from_now
+    ])
+  end
 
   # Notifications live here rather than in the controllers so tickets filed
   # from Slack notify identically to ones filed on the web.
   after_create_commit :notify_created
   after_update_commit :notify_status_changed, if: :saved_change_to_status?
+
+  # --- deadlines ---------------------------------------------------------
+
+  def needs_attention?
+    open? || in_progress?
+  end
+
+  def overdue?
+    due_at.present? && needs_attention? && due_at.past?
+  end
+
+  def due_soon?
+    due_at.present? && needs_attention? && !due_at.past? && due_at <= DUE_SOON.from_now
+  end
+
+  # "2 days overdue" / "due in about 5 hours" — one phrasing for the web,
+  # Slack and MCP. Finished tickets don't get nagged at.
+  def due_label
+    return if due_at.blank?
+
+    return "was due #{due_on}" unless needs_attention?
+
+    distance = ActionController::Base.helpers.distance_of_time_in_words(Time.current, due_at)
+    due_at.past? ? "#{distance} overdue" : "due in #{distance}"
+  end
+
+  # Deadlines are only meaningful with their zone attached — the app's zone
+  # isn't necessarily the reader's.
+  def due_on
+    due_at&.in_time_zone&.strftime("%-d %b %Y at %-l:%M %p %Z")
+  end
+
+  # --- blocking ----------------------------------------------------------
+
+  # Filtered in Ruby so a preloaded :blockers association answers this
+  # without a query per ticket when a whole queue is being rendered.
+  def outstanding_blockers
+    blockers.select(&:needs_attention?)
+  end
+
+  def blocked?
+    outstanding_blockers.any?
+  end
+
+  # Walks the whole chain, not just the direct blockers: if x waits on y and
+  # y waits on f, then x is waiting on f too.
+  def blocked_by_transitively?(other)
+    seen = Set.new([ id ])
+    pending = blockers.to_a
+
+    while (ticket = pending.shift)
+      return true if ticket.id == other.id
+      next unless seen.add?(ticket.id)
+
+      pending.concat(ticket.blockers.to_a)
+    end
+
+    false
+  end
+
+  # Everything still outstanding that could sensibly be waited on. Cycles
+  # aren't filtered out here — TicketBlock rejects those with a message that
+  # explains which chain the link would close.
+  def blocker_candidates
+    Ticket.needs_attention.where.not(id: [ id, *blockers.ids ].compact).order(created_at: :desc)
+  end
+
+  # Short enough for an error message or a Slack line.
+  def reference
+    "##{id} #{title.to_s.truncate(60)}".strip
+  end
 
   private
 

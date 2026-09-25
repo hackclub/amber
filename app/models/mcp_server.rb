@@ -5,6 +5,10 @@ class McpServer
   PROTOCOL_VERSION = "2025-06-18".freeze
   SUPPORTED_PROTOCOL_VERSIONS = [ PROTOCOL_VERSION, "2025-03-26", "2024-11-05" ].freeze
 
+  DUE_FORMAT = "Optional deadline as an ISO 8601 timestamp, e.g. 2026-10-01T17:00:00Z. " \
+               "Work out relative dates like \"next Friday\" yourself — they aren't parsed here. " \
+               "A time with no zone is read in the tracker's own zone.".freeze
+
   PARSE_ERROR = -32700
   INVALID_REQUEST = -32600
   METHOD_NOT_FOUND = -32601
@@ -73,7 +77,8 @@ class McpServer
             "topic" => { "type" => "string", "description" => "Topic name within that service, e.g. Bug" },
             "message" => { "type" => "string", "description" => "The details. Markdown is supported." },
             "priority" => { "type" => "string", "enum" => Ticket.priorities.keys, "description" => "Defaults to #{Ticket.new.priority}" },
-            "url" => { "type" => "string", "description" => "Optional link to something relevant" }
+            "url" => { "type" => "string", "description" => "Optional link to something relevant" },
+            "due" => { "type" => "string", "description" => DUE_FORMAT }
           },
           "required" => [ "title", "service", "topic", "message" ]
         }
@@ -106,8 +111,9 @@ class McpServer
     [
       {
         "name" => "my_queue",
-        "description" => "Everything waiting on you: open and in-progress tickets across all requesters, " \
-                         "ordered with VIP requesters and higher priority first.",
+        "description" => "Everything waiting on you: open and in-progress tickets across all requesters. " \
+                         "Anything blocked by an unfinished ticket sinks to the bottom, near deadlines rise to " \
+                         "the top, and VIP requesters and higher priority break the ties.",
         "inputSchema" => {
           "type" => "object",
           "properties" => { "limit" => { "type" => "integer", "description" => "Defaults to 25" } }
@@ -139,6 +145,46 @@ class McpServer
             "note" => { "type" => "string", "description" => "Optional explanation sent to the requester" }
           },
           "required" => [ "id", "status" ]
+        }
+      },
+      {
+        "name" => "set_deadline",
+        "description" => "Set a ticket's deadline, or clear it by calling with no due. Deadlines that are " \
+                         "close or already past pull a ticket up my_queue. This notifies nobody.",
+        "inputSchema" => {
+          "type" => "object",
+          "properties" => {
+            "id" => { "type" => "integer" },
+            "due" => { "type" => "string", "description" => DUE_FORMAT }
+          },
+          "required" => [ "id" ]
+        }
+      },
+      {
+        "name" => "block_ticket",
+        "description" => "Record that a ticket can't move until another one is finished. A blocked ticket sinks " \
+                         "to the bottom of my_queue until what it's waiting on is done or won't-do. Chains are " \
+                         "fine — x can wait on y which waits on f — but a loop is rejected.",
+        "inputSchema" => {
+          "type" => "object",
+          "properties" => {
+            "id" => { "type" => "integer", "description" => "The ticket that is stuck" },
+            "blocked_by" => { "type" => "integer", "description" => "The ticket it is waiting on" }
+          },
+          "required" => [ "id", "blocked_by" ]
+        }
+      },
+      {
+        "name" => "unblock_ticket",
+        "description" => "Remove a link added by block_ticket. Finishing the blocker is usually better — that " \
+                         "clears the way without losing the record of why it was stuck.",
+        "inputSchema" => {
+          "type" => "object",
+          "properties" => {
+            "id" => { "type" => "integer" },
+            "blocked_by" => { "type" => "integer", "description" => "The ticket it should stop waiting on" }
+          },
+          "required" => [ "id", "blocked_by" ]
         }
       },
       {
@@ -243,6 +289,9 @@ class McpServer
     when "list_people" then list_people
     when "set_vip" then set_vip(args)
     when "set_priority" then set_priority(args)
+    when "set_deadline" then set_deadline(args)
+    when "block_ticket" then block_ticket(args)
+    when "unblock_ticket" then unblock_ticket(args)
     when "create_service" then create_service(args)
     when "update_service" then update_service(args)
     when "create_topic" then create_topic(args)
@@ -283,6 +332,13 @@ class McpServer
       priority: args["priority"].presence || Ticket.new.priority,
       url: args["url"].presence
     )
+
+    if args["due"].present?
+      due = parse_time(args["due"])
+      return [ "Could not read #{args['due'].inspect} as a date. #{DUE_FORMAT}" ] if due.nil?
+
+      ticket.due_at = due
+    end
 
     return [ "Could not file it: #{ticket.errors.full_messages.to_sentence}" ] unless ticket.save
 
@@ -424,6 +480,57 @@ class McpServer
     "#{service.name} > #{topic.name} is now #{topic.active? ? 'active' : 'retired'}."
   end
 
+  def set_deadline(args)
+    ticket = Ticket.find(args["id"])
+
+    if args["due"].blank?
+      ticket.update!(due_at: nil)
+      return "Ticket ##{ticket.id} no longer has a deadline."
+    end
+
+    due = parse_time(args["due"])
+    return [ "Could not read #{args['due'].inspect} as a date. #{DUE_FORMAT}" ] if due.nil?
+
+    ticket.update!(due_at: due)
+    "Ticket ##{ticket.id} is due #{ticket.due_on} — #{ticket.due_label}."
+  end
+
+  def block_ticket(args)
+    ticket = Ticket.find(args["id"])
+    blocker = Ticket.find(args["blocked_by"])
+    link = ticket.blocked_links.new(blocker_ticket: blocker)
+
+    return [ "Could not link them: #{link.errors.full_messages.to_sentence}" ] unless link.save
+
+    "#{ticket.reference} is now waiting on #{blocker.reference}." +
+      (blocker.needs_attention? ? " It'll sit at the bottom of my_queue until that's finished." : "")
+  end
+
+  def unblock_ticket(args)
+    ticket = Ticket.find(args["id"])
+    link = ticket.blocked_links.find_by(blocker_ticket_id: args["blocked_by"])
+
+    return [ "Ticket ##{ticket.id} isn't waiting on ##{args['blocked_by']}." ] if link.nil?
+
+    link.destroy
+    "#{ticket.reference} is no longer waiting on ##{args['blocked_by']}."
+  end
+
+  # Time.zone.parse is lenient enough to find a date in almost anything —
+  # "next Friday-ish" comes back as this coming Friday — so the shape is
+  # checked first. A client that can't produce a real timestamp should be
+  # told so rather than have a deadline guessed for it.
+  ISO_TIMESTAMP = /\A\d{4}-\d{2}-\d{2}([ T]\d{2}:\d{2}(:\d{2})?([.,]\d+)?(Z|[+-]\d{2}:?\d{2})?)?\z/
+
+  def parse_time(value)
+    text = value.to_s.strip
+    return nil unless ISO_TIMESTAMP.match?(text)
+
+    Time.zone.parse(text)
+  rescue ArgumentError, TypeError
+    nil
+  end
+
   def find_service(name)
     Service.find_by("LOWER(name) = ?", name.to_s.downcase.strip)
   end
@@ -438,6 +545,8 @@ class McpServer
       "#{ticket.service.name} > #{ticket.topic.name}",
       "#{ticket.priority} priority",
       ticket.status_label.downcase,
+      ticket.due_label,
+      ("blocked by #{ticket.outstanding_blockers.map { |blocker| "##{blocker.id}" }.join(', ')}" if ticket.blocked?),
       "#{time_ago(ticket.created_at)} old"
     ].compact
 
@@ -449,6 +558,9 @@ class McpServer
       "##{ticket.id}: #{ticket.title}",
       "Status: #{ticket.status_label.downcase} · Priority: #{ticket.priority} · #{ticket.service.name} > #{ticket.topic.name}",
       "Filed by #{ticket.user.name.presence || ticket.user.email} #{time_ago(ticket.created_at)} ago",
+      ("Due: #{ticket.due_on} — #{ticket.due_label}" if ticket.due_at.present?),
+      ("Waiting on: #{list_refs(ticket.blockers)}" if ticket.blockers.any?),
+      ("Blocking: #{list_refs(ticket.blocking)}" if ticket.blocking.any?),
       ("Link: #{ticket.url}" if ticket.url.present?),
       "Web: #{SlackNotifier.ticket_url(ticket)}"
     ].compact
@@ -468,6 +580,10 @@ class McpServer
     end
 
     lines.join("\n")
+  end
+
+  def list_refs(tickets)
+    tickets.map { |ticket| "#{ticket.reference} (#{ticket.status_label.downcase})" }.join(", ")
   end
 
   def time_ago(time)

@@ -7,5 +7,8 @@ section(
 section("> #{ticket.status_note.to_s.gsub("\n", "\n> ")}", markdown: true) if ticket.status_note.present?
 
 context [
-  mrkdwn_text("#{ticket.service.name} ▸ #{ticket.topic.name}  ·  #{ticket.priority.humanize} priority")
+  mrkdwn_text(
+    "#{ticket.service.name} ▸ #{ticket.topic.name}  ·  #{ticket.priority.humanize} priority" +
+    (ticket.due_at.present? ? "  ·  ⏰ due #{ticket.due_on}" : "")
+  )
 ]

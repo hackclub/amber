@@ -316,6 +316,106 @@ class McpControllerTest < ActionDispatch::IntegrationTest
     assert_response :method_not_allowed
   end
 
+  test "create_ticket accepts a deadline" do
+    call_tool("create_ticket", {
+      "title" => "Needs to land before the event",
+      "service" => "website",
+      "topic" => "bug",
+      "message" => "Details.",
+      "due" => "2026-10-01T17:00:00Z"
+    }, token: @requester_token)
+
+    assert_equal Time.utc(2026, 10, 1, 17, 0), Ticket.last.due_at
+  end
+
+  test "create_ticket says so rather than guessing at an unreadable date" do
+    assert_no_difference -> { Ticket.count } do
+      call_tool("create_ticket", {
+        "title" => "x", "service" => "website", "topic" => "bug", "message" => "y", "due" => "next Friday-ish"
+      }, token: @requester_token)
+    end
+
+    assert response.parsed_body.dig("result", "isError")
+    assert_match "Could not read", text_content
+  end
+
+  test "an admin can set and clear a deadline" do
+    ticket = tickets(:website_bug)
+
+    call_tool("set_deadline", { "id" => ticket.id, "due" => "2026-10-01T17:00:00Z" }, token: @admin_token)
+
+    assert_equal Time.utc(2026, 10, 1, 17, 0), ticket.reload.due_at
+    assert_match "1 Oct 2026", text_content
+
+    call_tool("set_deadline", { "id" => ticket.id }, token: @admin_token)
+
+    assert_nil ticket.reload.due_at
+  end
+
+  test "a requester can't set a deadline on anything" do
+    call_tool("set_deadline", { "id" => tickets(:website_bug).id, "due" => "2026-10-01T17:00:00Z" },
+              token: @requester_token)
+
+    assert response.parsed_body.dig("result", "isError")
+    assert_nil tickets(:website_bug).reload.due_at
+  end
+
+  test "an admin can link and unlink blocked tickets" do
+    ticket = tickets(:website_bug)
+    blocker = other_persons_ticket
+
+    call_tool("block_ticket", { "id" => ticket.id, "blocked_by" => blocker.id }, token: @admin_token)
+
+    assert_equal [ blocker ], ticket.reload.blockers
+    assert_match "waiting on", text_content
+
+    call_tool("unblock_ticket", { "id" => ticket.id, "blocked_by" => blocker.id }, token: @admin_token)
+
+    assert_empty ticket.reload.blockers
+  end
+
+  test "a link that would close a loop is refused" do
+    ticket = tickets(:website_bug)
+    blocker = other_persons_ticket
+    ticket.blocked_links.create!(blocker_ticket: blocker)
+
+    call_tool("block_ticket", { "id" => blocker.id, "blocked_by" => ticket.id }, token: @admin_token)
+
+    assert response.parsed_body.dig("result", "isError")
+    assert_match "would create a loop", text_content
+    assert_empty blocker.reload.blockers
+  end
+
+  test "unblocking something that isn't blocked says so" do
+    call_tool("unblock_ticket", { "id" => tickets(:website_bug).id, "blocked_by" => other_persons_ticket.id },
+              token: @admin_token)
+
+    assert response.parsed_body.dig("result", "isError")
+  end
+
+  test "get_ticket shows the deadline and what a ticket is waiting on" do
+    ticket = tickets(:website_bug)
+    ticket.update!(due_at: 2.days.ago)
+    ticket.blocked_links.create!(blocker_ticket: other_persons_ticket)
+
+    call_tool("get_ticket", { "id" => ticket.id }, token: @admin_token)
+
+    assert_match "Due:", text_content
+    assert_match "overdue", text_content
+    assert_match "Waiting on: ##{other_persons_ticket.id}", text_content
+  end
+
+  test "my_queue flags what is blocked and what is late" do
+    ticket = tickets(:website_bug)
+    ticket.update!(due_at: 2.days.ago)
+    ticket.blocked_links.create!(blocker_ticket: other_persons_ticket)
+
+    call_tool("my_queue", {}, token: @admin_token)
+
+    assert_match "overdue", text_content
+    assert_match "blocked by ##{other_persons_ticket.id}", text_content
+  end
+
   private
 
   def other_persons_ticket

@@ -40,6 +40,8 @@ tickets.each do |ticket|
     (requester if user&.admin?),
     "#{ticket.service.name} ▸ #{ticket.topic.name}",
     priority_labels[ticket.priority],
+    ("⏰ #{ticket.due_label}" if ticket.due_at.present?),
+    ("🚧 blocked" if ticket.blocked?),
     "#{time_ago_in_words(ticket.created_at)} ago"
   ].compact.join("  ·  ")
 

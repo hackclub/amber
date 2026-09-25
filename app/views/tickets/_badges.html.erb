@@ -1,0 +1,17 @@
+<%# Deadline and blocked pills, together so a change to either can be streamed
+    back into whichever page is showing them. `contents` keeps the wrapper out
+    of the surrounding flex layout. %>
+<span id="<%= dom_id(ticket, :badges) %>" class="contents">
+  <% if ticket.due_at.present? %>
+    <span class="text-xs px-2 py-0.5 rounded-full <%= due_badge_classes(ticket) %>" title="Due <%= ticket.due_on %>">
+      <%= ticket.due_label %>
+    </span>
+  <% end %>
+
+  <% if ticket.blocked? %>
+    <span class="text-xs px-2 py-0.5 rounded-full bg-purple-100 text-purple-700"
+          title="Waiting on <%= ticket.outstanding_blockers.map(&:reference).join(', ') %>">
+      Blocked
+    </span>
+  <% end %>
+</span>

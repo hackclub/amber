@@ -7,6 +7,8 @@ Rails.application.routes.draw do
 
   resources :tickets, only: [ :new, :create, :show, :update ] do
     resources :notes, only: [ :create, :destroy ], controller: "ticket_notes"
+    resources :blocks, only: [ :create, :destroy ], controller: "ticket_blocks"
+    resource :deadline, only: [ :update, :destroy ], controller: "ticket_deadlines"
   end
 
   namespace :admin do

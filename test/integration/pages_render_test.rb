@@ -23,6 +23,30 @@ class PagesRenderTest < ActionDispatch::IntegrationTest
     end
   end
 
+  test "a ticket with a deadline and a blocker renders for both sides" do
+    ticket = tickets(:website_bug)
+    blocker = users(:amber).tickets.create!(
+      title: "The thing it waits on", message: "…", service: services(:slack), topic: topics(:access_request)
+    )
+    ticket.update!(due_at: 2.days.ago)
+    ticket.blocked_links.create!(blocker_ticket: blocker)
+
+    sign_in(users(:amber))
+    get ticket_path(ticket)
+    assert_response :success
+    assert_select "a[href=?]", ticket_path(blocker)
+
+    sign_in(users(:requester))
+    get ticket_path(ticket)
+    assert_response :success
+    # The requester is told they're waiting, not whose ticket it is.
+    assert_select "a[href=?]", ticket_path(blocker), false
+    assert_match "Waiting on 1 other ticket", response.body
+
+    get root_path
+    assert_response :success
+  end
+
   test "every page an admin can reach renders" do
     sign_in(users(:amber))
 

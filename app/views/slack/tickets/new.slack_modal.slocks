@@ -30,6 +30,12 @@ input "Link",
       block_id: "url",
       optional: true
 
+input "Needed by",
+      datetime_picker("due"),
+      block_id: "due",
+      optional: true,
+      hint: "Leave it blank if there's no hard date."
+
 input "Details",
       plain_text_input("message", multiline: true, initial_value: initial_message.to_s.truncate(2900).presence),
       block_id: "message",

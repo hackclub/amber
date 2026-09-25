@@ -6,6 +6,17 @@ private_metadata "#{ticket.id}:#{status}"
 
 section "*#{ticket.title}*\nSetting status to *#{Ticket.status_label(status)}*", markdown: true
 
+if ticket.due_at.present? || ticket.blocked?
+  context [
+    mrkdwn_text(
+      [
+        ("⏰ Due #{ticket.due_on} — #{ticket.due_label}" if ticket.due_at.present?),
+        ("🚧 Waiting on #{ticket.outstanding_blockers.map(&:reference).join(', ')}" if ticket.blocked?)
+      ].compact.join("  ·  ")
+    )
+  ]
+end
+
 if ticket.notes.any?
   context [ mrkdwn_text("*Internal notes so far*") ]
   ticket.notes.oldest_first.last(5).each do |note|
@@ -20,6 +31,31 @@ input "Note for #{ticket.user.name.presence || 'them'} (optional)",
       block_id: "note",
       optional: true,
       hint: "Sent to them by DM and email."
+
+input "Deadline (optional)",
+      datetime_picker("due", initial_date_time: ticket.due_at&.to_i),
+      block_id: "due",
+      optional: true,
+      hint: ticket.due_at.present? ? "Currently due #{ticket.due_on}." : "Set one if this needs to land by a date."
+
+# A datetimepicker can't be emptied, so clearing needs its own control.
+if ticket.due_at.present?
+  input "Remove the deadline",
+        checkboxes("clear_due", [ option("Clear it", "clear") ]),
+        block_id: "clear_due",
+        optional: true
+end
+
+blocker_candidates = ticket.blocker_candidates.limit(100)
+
+if blocker_candidates.any?
+  input "Waiting on (optional)",
+        select_menu("blocker", placeholder: "Pick a ticket this one is waiting on",
+                    options: blocker_candidates.map { |candidate| option(candidate.reference, candidate.id.to_s) }),
+        block_id: "blocker",
+        optional: true,
+        hint: "Adds a link. Removing one is done on the web."
+end
 
 input "Internal note (optional)",
       plain_text_input("internal_note", multiline: true, placeholder: "Waiting on a reply from…"),

@@ -8,6 +8,7 @@
       <% if ticket.user.priority_boost? %>
         <span class="text-xs px-2 py-0.5 rounded-full bg-purple-100 text-purple-700">VIP</span>
       <% end %>
+      <%= render "tickets/badges", ticket: ticket %>
     </div>
     <p class="text-sm text-gray-500 truncate">
       <%= ticket.user.name.presence || ticket.user.email %> &middot;

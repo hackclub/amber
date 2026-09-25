@@ -9,6 +9,7 @@ section(
 context [
   mrkdwn_text(
     "#{ticket.service.name} ▸ #{ticket.topic.name}  ·  #{ticket.priority.humanize} priority" +
+    (ticket.due_at.present? ? "  ·  ⏰ due #{ticket.due_on}" : "") +
     (ticket.user.priority_boost? ? "  ·  ⭐ VIP" : "")
   )
 ]

@@ -21,7 +21,10 @@ module AmberHackclubCom
     # These settings can be overridden in specific environments using the files
     # in config/environments, which are processed later.
     #
-    # config.time_zone = "Central Time (US & Canada)"
+    # Deadlines are absolute times, so the zone they're typed and read in
+    # matters. UTC unless told otherwise.
+    config.time_zone = ENV.fetch("APP_TIME_ZONE", "UTC")
+
     # config.eager_load_paths << Rails.root.join("extras")
   end
 end
