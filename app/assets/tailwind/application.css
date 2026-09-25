@@ -1,1 +1,21 @@
 @import "tailwindcss";
+
+/* Slack mentions arrive as ordinary links to slack.com/app_redirect (see
+   SlackText), which left them reading as blue underlined text in the middle
+   of a sentence. This is Slack's own treatment: a quiet blue pill that's
+   obviously a person or a channel rather than a link to somewhere else. */
+.slack-mention {
+  border-radius: 0.25rem;
+  padding: 0.05rem 0.2rem;
+  color: var(--color-blue-700);
+  background-color: var(--color-blue-50);
+  font-weight: 500;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.slack-mention:hover {
+  color: var(--color-blue-800);
+  background-color: var(--color-blue-100);
+  text-decoration: none;
+}

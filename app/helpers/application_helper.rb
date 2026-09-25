@@ -25,6 +25,7 @@ module ApplicationHelper
 
       attributes = %(href="#{ERB::Util.html_escape(url)}")
       attributes += %( title="#{ERB::Util.html_escape(title)}") if title.present?
+      attributes += %( class="slack-mention") if SlackText.mention_url?(url)
       attributes += %( target="_blank" rel="noopener noreferrer") if ApplicationHelper.external_url?(url)
 
       "<a #{attributes}>#{content}</a>"
@@ -46,8 +47,10 @@ module ApplicationHelper
   )
 
   MARKDOWN_TAGS = %w[p br strong em a ul ol li h1 h2 h3 h4 blockquote code pre table thead tbody tr th td hr del].freeze
-  # target and rel have to survive sanitising, or the renderer's work is undone.
-  MARKDOWN_ATTRIBUTES = %w[href target rel].freeze
+  # target, rel and class have to survive sanitising, or the renderer's work is
+  # undone. Nothing a person writes can reach these: filter_html drops raw HTML
+  # before this runs, so every attribute here was written by the renderer.
+  MARKDOWN_ATTRIBUTES = %w[href target rel class].freeze
 
   # A Slack permalink is ~200 unreadable characters, so it gets a label
   # instead. Everything else shows the URL, which is the useful part.

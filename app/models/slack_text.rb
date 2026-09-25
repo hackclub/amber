@@ -37,13 +37,21 @@ module SlackText
     label.include?(id) ? (id.start_with?("D") ? "a DM" : "Slack") : label
   end
 
+  DEEP_LINK = "https://slack.com/app_redirect?channel=".freeze
+
   # Opens the channel, or a DM with the person, in whichever Slack client
   # they use. Same redirect the "Message on Slack" link uses.
   def self.deep_link(id)
-    url = "https://slack.com/app_redirect?channel=#{id}"
+    url = "#{DEEP_LINK}#{id}"
     team = ENV["SLACK_TEAM_ID"].presence
 
     team ? "#{url}&team=#{team}" : url
+  end
+
+  # Lets the markdown renderer tell a mention apart from an ordinary link, so
+  # it can be styled the way Slack styles one.
+  def self.mention_url?(url)
+    url.to_s.start_with?(DEEP_LINK)
   end
 
   def self.token(inner, names)

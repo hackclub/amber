@@ -65,6 +65,30 @@ class ApplicationHelperTest < ActionView::TestCase
     assert_no_match(/<script/, html)
   end
 
+  test "a Slack mention is marked so it can be styled like one" do
+    html = markdown("Hey [@Amber](#{SlackText.deep_link('U054VC2KM9P')}), thoughts?")
+
+    assert_match(/<a[^>]*class="slack-mention"[^>]*>@Amber<\/a>/, html)
+  end
+
+  test "an ordinary link is left as an ordinary link" do
+    html = markdown("see [the thread](https://example.com/x)")
+
+    assert_no_match(/slack-mention/, html)
+  end
+
+  test "a Slack permalink is a link, not a mention" do
+    html = markdown("[a message](https://hackclub.slack.com/archives/C1/p1700000000)")
+
+    assert_no_match(/slack-mention/, html)
+  end
+
+  test "nobody can smuggle a class of their own through markdown" do
+    html = markdown(%(<a href="https://example.com" class="fixed inset-0">hi</a>))
+
+    assert_no_match(/class=/, html)
+  end
+
   private
 
   def with_env(values)
